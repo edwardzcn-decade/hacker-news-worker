@@ -109,7 +109,7 @@ async function handleCron(env: Env): Promise<void> {
 	// const results = [];
 	// TODO Data Process (in the subgraph)
 	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
-	const cachedStringIds = (await kvm.list()).map((keys) => keys[0]);
+	const cachedStringIds = await kvm.listKeys();
 	console.log(`[Cron Handler][Data Process] ⚠️ Already cached ids should have prefix like HN-`);
 	console.log(`[Cron Handler][Data Process] ⚠️ Already cached item ids:${cachedStringIds}`);
 	// Cut prefix and transform to number list
