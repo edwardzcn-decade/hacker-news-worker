@@ -185,7 +185,7 @@ async function notifyTelegram(env: Env, p: any): Promise<void> {
 	const story_id_int: number = p.id;
 	const story_id: string = story_id_int.toString();
 	const short_id: string = encode(story_id_int);
-	const hn_url: URL = new URL('item', 'https://new.ycombinator.com/');
+	const hn_url: URL = new URL('item', 'https://news.ycombinator.com/');
 	hn_url.searchParams.append('id', story_id);
 
 	let story_url = p.url;
