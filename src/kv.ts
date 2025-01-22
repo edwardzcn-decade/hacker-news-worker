@@ -1,6 +1,5 @@
 /**
- * KVManager handles all interactions with the KV store
- * This class provides kv CURD perations like [database.py](https://github.com/phil-r/hackernewsbot/blob/master/database.py)
+ * KVManager wraps KV CRUD operations used for Hacker News caching.
  */
 
 import { HackerNewsItem } from './apis/hn';
@@ -15,32 +14,43 @@ interface HackerNewsItemCache {
 
 export class KVManager {
 	/**
-	 * Create a new KVManager instance
-	 * @param kv - The Cloudflare KV namespace instance to use for storage
-	 * @param prefix - The key-prefix (e.g. HN for HN-13311) of hacker news item cache
-	 * @param ttlKey - The key to check ttl default value for other items in kv
-	 * @param ttlDefault - The default ttl default
+	 * Create a new KVManager instance.
+	 * @param kv Cloudflare KV namespace instance.
+	 * @param prefix Key prefix for Hacker News (e.g. HN for HN-13311).
+	 * @param ttlKey Key storing the default TTL value.
+	 * @param ttlDefault Fallback/Default TTL value in seconds.
 	 */
 	constructor(private kv: KVNamespace, private prefix: string, private ttlKey: string = 'TTL', private ttlDefault: number = 3600) {}
 
-	async listKeysMeta(prefix?: string, onlyOnce: boolean = true): Promise<{ name: string; meta: {} | null }[]>{
-		return onlyOnce? this.listOnce(prefix) : this.listAll(prefix)
+	/**
+	 * List keys name and metadata.
+	 * @param prefix Optional prefix filter.
+	 * @param onlyOnce Default to be true, fetch one page (<=1000). Fetch all if set to false.
+	 * @returns List of structure including key name and metadata
+	 */
+	async listKeysMeta(prefix?: string, onlyOnce: boolean = true): Promise<{ name: string; meta: {} | null }[]> {
+		return onlyOnce ? this.listOnce(prefix) : this.listAll(prefix);
 	}
 
+	/**
+	 * List key names.
+	 * @param prefix Optional prefix filter.
+	 * @param onlyOnce Default to be true, fetch one page (<=1000). Fetch all if set to false.
+	 * @returns List of string representing key name
+	 */
 	async listKeys(prefix?: string, onlyOnce: boolean = true): Promise<string[]> {
 		return onlyOnce ? (await this.listOnce(prefix)).map((k) => k.name) : (await this.listAll(prefix)).map((k) => k.name);
 	}
 
 	/**
-	 * Retrives a batch of keys (without pagniation) from kv storage
-	 * @param prefix Optional. If given, fetch keys start with that prefix
-	 * @returns structure with string field name and json object field meta
+	 * Retrieve one batch of keys information (<=1000) from KV.
+	 * @param prefix Optional prefix filter.
+	 * @returns List of structure including key name and metadata
 	 */
 	async listOnce(prefix?: string): Promise<{ name: string; meta: {} | null }[]> {
 		if (prefix === undefined) {
-  		console.log("[KVManager] Try list once cached keys without prefix (all keys).");
-		}
-		else if (prefix !== 'HN-' && prefix !== 'hn:') {
+			console.log('[KVManager] Try list once cached keys without prefix (all keys).');
+		} else if (prefix !== 'HN-' && prefix !== 'hn:') {
 			console.warn(`[KVManager] ⚠️ Try list once cached keys without proper prefix:${prefix}. Please check.`);
 		} else {
 			console.log(`[KVManager] Try list once cached keys with prefix:${prefix}.`);
@@ -64,16 +74,15 @@ export class KVManager {
 	}
 
 	/**
-	 * Retrives all keys from kv storage
-	 * @param prefix Optional. If given, fetch keys start with that prefix
-	 * @param cursor Optional. Used for fetch next batch of keys
-	 * @returns structure with string field name and json object field meta
+	 * Retrieve all keys from KV using pagination.
+	 * @param prefix Optional prefix filter.
+	 * @param cursor Optional cursor for fetching the next batch.
+	 * @returns List of structure including key name and metadata
 	 */
 	async listAll(prefix?: string, cursor?: string): Promise<{ name: string; meta: {} | null }[]> {
 		if (prefix === undefined) {
-  		console.log("[KVManager] Try list all cached keys without prefix (all keys).");
-		}
-		else if (prefix !== 'HN-' && prefix !== 'hn:') {
+			console.log('[KVManager] Try list all cached keys without prefix (all keys).');
+		} else if (prefix !== 'HN-' && prefix !== 'hn:') {
 			console.warn(`[KVManager] ⚠️ Try list all cached keys without proper prefix:${prefix}. Please check.`);
 		} else {
 			console.log(`[KVManager] Try list all cached keys with prefix:${prefix}.`);
@@ -100,12 +109,11 @@ export class KVManager {
 	}
 
 	/**
-	 * Create a new key value pair with speci
-	 * @param key
-	 * @param meta
-	 * @param value
-	 * @param ttl
-	 * @returns
+	 * Store a value with metadata and TTL.
+	 * @param key KV key (expects HN- or hn: prefix).
+	 * @param meta Metadata string stored under `m`.
+	 * @param value Value to put.
+	 * @param ttl Optional expiration TTL override in seconds.
 	 */
 	async create(key: string, meta: string, value: string, ttl?: number): Promise<void> {
 		if (key.startsWith('HN-') || key.startsWith('hn:')) {
@@ -124,6 +132,12 @@ export class KVManager {
 		return this.kv.put(key, value, options);
 	}
 
+	/**
+	 * Read and fetch a value as plain text or json object
+	 * @param key Key to read.
+	 * @param type Desired return type (`text` or `json`).
+	 * @returns Return string as plain text or HackerNewsItemCache
+	 */
 	async get(key: string, type: 'text'): Promise<string | null>;
 	async get(key: string, type: 'json'): Promise<HackerNewsItemCache | null>;
 	async get(key: string, type: 'text' | 'json'): Promise<string | HackerNewsItemCache | null> {
@@ -139,6 +153,21 @@ export class KVManager {
 		}
 	}
 
+	/**
+	 * Delete a key from KV.
+	 * @param key KV key to remove.
+	 */
+	async delete(key: string): Promise<void> {
+		console.warn(`[KVManager] ⚠️ Try delete key:${key}. Please check.`);
+		// No options for delete
+		return this.kv.delete(key);
+	}
+
+	/**
+	 * Create and store a Hacker News item cache entry. (Compatible with older versions)
+	 * @param hnItem Hacker News item payload.
+	 * @returns Newly created cache record.
+	 */
 	async createHnItemCache(hnItem: HackerNewsItem): Promise<HackerNewsItemCache> {
 		const newHnItem: HackerNewsItemCache = {
 			uuid: crypto.randomUUID(),
@@ -156,11 +185,5 @@ export class KVManager {
 		// 	expirationTtl: 300,
 		// });
 		return newHnItem;
-	}
-
-	async delete(key: string): Promise<void> {
-		console.warn(`[KVManager] ⚠️ Try delete key:${key}. Please check.`);
-		// No options for delete
-		return this.kv.delete(key);
 	}
 }
