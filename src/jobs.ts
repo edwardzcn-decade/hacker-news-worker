@@ -12,14 +12,15 @@ import {
 import { MIN_SCORE_DEFAULT, TG_BASE_URL, UNIX_TIME_DEFAULT, KV_PREFIX } from './utils/config';
 
 export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
-	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, 'HN-', 'TTL', env.KV_TTL_SECS);
+	const hnPrefix: string = prefixFactory(KV_PREFIX);
+	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, hnPrefix, 'TTL', env.KV_TTL_SECS);
 
 	console.log('[Job TG] Fetch top stories without shards with Hacker News API');
 	const topItems: HackerNewsItem[] =
 		shards !== undefined ? await fetchTopWithShards(undefined, shards) : await fetchTop();
 
-	const hnPrefix: string = prefixFactory(KV_PREFIX);
-	const cachedIds = (await kvm.listKeys())
+	// TODO Test listKeys with onlyOnce setting false
+	const cachedIds = (await kvm.listKeys(hnPrefix, true))
 		.map((id) => (id.startsWith(hnPrefix) ? id.slice(hnPrefix.length) : id))
 		.map((s) => Number(s))
 		.filter((n) => Number.isFinite(n));

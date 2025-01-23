@@ -34,8 +34,6 @@ switch (controller.cron) {
 }
 ```
 
-
-
 ## Features
 
 - Scheduled fetching via Cloudflare Workers Cron Triggers.
@@ -47,7 +45,7 @@ switch (controller.cron) {
   - Generating summaries for each Hacker News item.
   - Assigning an additional LLM-based relevance score.
 
-## TODO
+## Roadmap
 
 - [x] Scheduler trigger with Cron job
 - [x] Data filter

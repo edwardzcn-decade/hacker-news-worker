@@ -36,7 +36,10 @@ export class KVManager {
 			// One-time read–write for visibility in KV dashboard
 			const current = await kv.get(ttlKey, 'text');
 			if (!current) {
-				await kv.put(ttlKey, String(ttlDefault));
+				await kv.put(ttlKey, ttlDefault.toString());
+			} else {
+				console.error(`[KVManager] ⚠️ Rewrite key:${ttlKey} value:${ttlDefault} in KVManager init`);
+				await kv.put(ttlKey, ttlDefault.toString());
 			}
 		} catch (err) {
 			console.error(`[KVManager] ❌ Fail in KVManager init. Error: ${err}`);
@@ -152,11 +155,11 @@ export class KVManager {
 	 * @param ttl Optional expiration TTL override in seconds.
 	 */
 	async create(key: string, value: string, meta?: object, ttl?: number): Promise<void> {
-		if (key.startsWith('HN-') || key.startsWith('hn:')) {
+		if (key.startsWith(this.prefix)) {
 			console.log(`[KVManager] Try creat cache for key:${key}`);
 		} else {
 			console.warn(
-				`[KVManager] ⚠️ Try create cache for key without proper prefix, key:${key}. Please check.`,
+				`[KVManager] ⚠️ Try create cache for key:${key} without proper prefix like \"${this.prefix}\". Please check.`,
 			);
 		}
 		if (!checkMetaLimit(meta ?? {})) {
@@ -201,31 +204,5 @@ export class KVManager {
 		console.warn(`[KVManager] ⚠️ Try delete key:${key}. Please check.`);
 		// No options for delete
 		return this.kv.delete(key);
-	}
-
-	/**
-	 * Create and store a Hacker News item cache entry. (Compatible with older versions)
-	 *
-	 * @param hnItem Hacker News item payload.
-	 * @returns Newly created cache record.
-	 */
-	async createHnItemCache(hnItem: HackerNewsItem): Promise<HackerNewsItemCache> {
-		const newHnItem: HackerNewsItemCache = {
-			uuid: crypto.randomUUID(),
-			item: hnItem,
-			createdAt: Date.now(),
-			expiration: 0, // TODO not used
-			is_expired: false, // TODO not used
-		};
-		const kprefex = this.prefix
-			? this.prefix.endsWith('-')
-				? this.prefix
-				: `${this.prefix}-`
-			: 'HN-';
-		const kkey: string = `${kprefex}${newHnItem.item.id}`;
-		const kmeta: string = `${newHnItem.uuid}`;
-		// Pass ttl directly
-		await this.create(kkey, JSON.stringify(newHnItem), { uuid: kmeta });
-		return newHnItem;
 	}
 }

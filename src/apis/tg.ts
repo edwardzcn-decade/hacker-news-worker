@@ -9,7 +9,6 @@ export async function sendMessage(
 	// NOTE(#6) tg bot token like `bot91918237:ASDFSAF` will trigger scheme-like problem and let URL constructor omit base url.
 	const tgEndpoint = new URL(TG_BASE_URL);
 	tgEndpoint.pathname = `bot${tgBotToken}/sendMessage`;
-	console.log(`[TG SendMessage] Telegram endpoint:${tgEndpoint}`);
 
 	const header = {
 		'User-Agent': 'hacker-news-worker/v0.3.1',
