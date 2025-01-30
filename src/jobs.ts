@@ -100,19 +100,19 @@ async function notifyTg(env: Env, p: any, specified?: string): Promise<void> {
 			url: storyUrl,
 		},
 		{
-			text: commentCounts ? `Comments (${commentCounts}+)` : `Comments`,
+			text: commentCounts ? `Comments ${commentCounts}+` : `Comments`,
 			url: shortStoryUrl,
 		},
 	];
 
 	// Get the time difference and emoji
-	const nowSecs: number = Date.now() / 1000;
+	const nowSecs: number = Math.ceil(Date.now() / 1000);
 	const statusEmoji =
 		typeof p.time === 'number'
 			? (() => {
-					const delta = nowSecs - p.time;
-					if (delta <= FOUR_HOURS) return '🔥 ';
-					if (delta >= TWO_DAYS) return '❄️ ';
+					const deltaSecs = nowSecs - p.time;
+					if (deltaSecs <= FOUR_HOURS) return '🔥 ';
+					if (deltaSecs >= TWO_DAYS) return '❄️ ';
 					return '';
 			  })()
 			: '';
