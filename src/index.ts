@@ -97,7 +97,7 @@ export default {
 				// Every 10 minutes, trigger telegram bot
 				ctx.waitUntil(runTelegramJob(env));
 				break;
-			case '30 9 * * mon,wed,fri':
+			case '10 9 * * mon,wed,fri':
 				// 09:30 UTC every Monday, Wednesday and Friday
 				ctx.waitUntil(runEmailJob(env));
 				break;
