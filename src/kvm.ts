@@ -39,7 +39,7 @@ export class KVManager {
 				console.log(`[KVManager] Init key:${ttlKey} value:${ttlDefault} in KVManager init`);
 				await kv.put(ttlKey, ttlDefault.toString());
 			} else {
-				console.log(`[KVManager] ⚠️ Rewrite key:${ttlKey} value:${ttlDefault} in KVManager init`);
+				console.warn(`[KVManager] ⚠️ Rewrite key:${ttlKey} value:${ttlDefault}->${current} in KVManager init`);
 				await kv.put(ttlKey, ttlDefault.toString());
 			}
 		} catch (err) {
