@@ -6,7 +6,8 @@ Mainly work on Cloudflare Workers to fetch and process Hacker News data, forward
 
 + [x] Scheduler trigger (cron)
 + [x] Devide into API redirect and page redirect
-+ [ ] Secret for Telegram bot / Email / Webhook
++ [x] Notify for Telegram bot
++ [ ] Notify Email
 + [ ] LLM summary and scoring
 + [ ] Implement Email notification
 

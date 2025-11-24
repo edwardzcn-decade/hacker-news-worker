@@ -1,22 +1,16 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import {
+	encode,
+	decode,
+} from "./utils/base62";
+const HN_BASE_URL = 'https://hacker-news.firebaseio.com/v0/';
 
-const BASE_URL = 'https://hacker-news.firebaseio.com/v0/';
 const LIMIT_DEFAULT = 5;
 const SHARD_DEFAULT = 3;
 const MIN_SCORE_DEFAULT = 100;
 const UNIX_TIME_DEFAULT = 0; // no time filter by default
 // Common Hacker News Item from
+
+
 
 type HackerNewsItem = {
 	id: number; // unique identifier
@@ -113,7 +107,7 @@ export default {
 			);
 		}
 		return new Response('Forward route unknown endpoint. Not Found', { status: 404 });
-		// const url = new URL(`item/${itemId}.json`, BASE_URL);
+		// const url = new URL(`item/${itemId}.json`, HN_BASE_URL);
 		// url.searchParams.append('print', 'pretty');
 		// console.log('Full URL string:', url.toString());
 		// const response = await fetch(url, {
@@ -169,19 +163,19 @@ async function fetchTop(limit: number = LIMIT_DEFAULT): Promise<HackerNewsItem[]
 async function fetchTopWithShards(
 	limit: number = LIMIT_DEFAULT,
 	shards: number = SHARD_DEFAULT,
-	shard_type: 'interleaved' | 'sequential' = 'interleaved'
+	shardType: 'interleaved' | 'sequential' = 'interleaved'
 ): Promise<HackerNewsItem[]> {
 	// Async parallel v0.3.0 with sharding
 	try {
 		const ids: number[] = await apiFetchTopStoryIds(limit);
-		const shard_ids: number[][] = shard_type === 'interleaved' ? shardInterleaved(ids, shards) : shardSequential(ids, shards);
-		// `shards`: the length of shard_ids
-		// const pp = shard_ids.map((shard): shard is number[] => fetchItemsByIds(shard))  // no need for type predicate/guard here
-		const shard_promises = shard_ids.map((shard) => fetchItemsByIds(shard));
-		const shard_results: HackerNewsItem[][] = await Promise.all(shard_promises);
+		const shardIds: number[][] = shardType === 'interleaved' ? shardInterleaved(ids, shards) : shardSequential(ids, shards);
+		// `shards`: the length of shardIds
+		// const pp = shardIds.map((shard): shard is number[] => fetchItemsByIds(shard))  // no need for type predicate/guard here
+		const shardPromises = shardIds.map((shard) => fetchItemsByIds(shard));
+		const shardResults: HackerNewsItem[][] = await Promise.all(shardPromises);
 		// flat
-		const all_items = shard_results.flat();
-		return all_items;
+		const allItems = shardResults.flat();
+		return allItems;
 	} catch (err) {
 		console.error('Error in fetchTopWithShards:', err);
 		console.error('Return empty array of HackerNewsItem');
@@ -215,7 +209,7 @@ async function handleCron(env: Env): Promise<void> {
 
 	// +++++++++++++++++++ Data Process Calling +++++++++++++++++++++++
 	// TODO: design process type?
-	const result = [];
+	const results = [];
 	// TODO Data Process (in the subgraph)
 	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
 	try {
@@ -225,13 +219,13 @@ async function handleCron(env: Env): Promise<void> {
 
 		// TODO Actual LLM summary and LLM score (optional)
 		for (const item of filtered) {
-			const llm_summary = await summaryLLM(env, item);
-			const llm_score = await scoreLLM(env, item);
-			console.log('Processed Item ID after filter:', item.id, '  LLM Score:', llm_score, '  LLM Summary:', llm_summary);
-			result.push({
+			const llmSummary = await summaryLLM(env, item);
+			const llmScore = await scoreLLM(env, item);
+			console.log('Processed Item ID after filter:', item.id, '  LLM Score:', llmScore, '  LLM Summary:', llmSummary);
+			results.push({
 				...item,
-				llm_summary: llm_summary,
-				llm_score: llm_score,
+				llmSummary: llmSummary,
+				llmScore: llmScore,
 			});
 		}
 	} catch (err) {
@@ -242,7 +236,7 @@ async function handleCron(env: Env): Promise<void> {
 	// 4. TODO Notification (telegram  / email / webhook)
 	await notifyAll(
 		env,
-		result.map((item) => item.id)
+		results
 	);
 }
 
@@ -253,16 +247,113 @@ async function notifyAll(env: Env, payloads: any[]): Promise<void> {
 	for (const p of payloads) {
 		console.log(
 			'[Notify]',
-			`[Score: ${p.score}][Title: ${p.title}] - ${p.url} by ${p.by}`,
-			`[LLM Summary: ${p.llm_summary}]`,
-			`[LLM Score: ${p.llm_score}]`
+			`[Score: ${p.score}]`,
+			`[Title: ${p.title}]`,
+			`[Link: ${p.url}]`,
+			`[By: ${p.by}]`,
+			`[LLM Summary: ${p.llmSummary}]`,
+			`[LLM Score: ${p.llmScore}]`
 		);
+		await notifyTelegram(env, p);
+		// TODO: for v0.3.2 add notifyEmail, notifyWebhook
+		// await notifyEmail(env, payloads);
+		// await notifyWebhook(env, payloads);
 	}
+}
 
-	// TODO: for v0.3.1 add notifyTelegram, notifyEmail, notifyWebhook
-	// await notifyTelegram(env, payloads);
-	// await notifyEmail(env, payloads);
-	// await notifyWebhook(env, payloads);
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function notifyTelegram(env: Env, p: any): Promise<void> {
+
+	const story_id_int: number = p.id;
+	const story_id: string = story_id_int.toString();
+	const short_id: string = encode(story_id_int);
+	const hn_url: URL = new URL( "item","https://new.ycombinator.com/");
+	hn_url.searchParams.append("id", story_id);
+
+	let story_url = p.url;
+	const short_hn_url: URL = new URL(`c/${short_id}`, "https://readhacker.news/")
+	let short_url: URL = new URL(`s/${short_id}`, "https://readhacker.news/")
+
+	if (!!story_url){
+		short_url = short_hn_url
+	}
+	const buttons = [
+		{
+			text: "Read",
+			url: story_url
+		},
+		{
+			text: "Comments",
+			url: hn_url
+		}
+	];
+
+	const title = escapeHtml(p.title)
+	const scorePart = typeof p.score === "number" ? `Score: ${p.score}+` : "";
+  const headerParts = [scorePart, `by ${p.by}`].filter(Boolean).join(" · ");
+
+  let message = `<b>${title}</b>`;
+  if (headerParts) {
+    message += `\n(${headerParts})`;
+  }
+
+  // Story URL Link
+  message += `\n\n<b>Link:</b> ${p.url}`;
+	// Comments URL Link
+	message += `\n\n<b>Comments:</b> ${hn_url}`;
+	// Summary
+	if(p.llmSummary) {
+		message += `\n\nLLM Summary: ${escapeHtml(p.llmSummary)}`
+	}
+	const replyMarkup = {
+		inline_keyboard: [buttons],
+	};
+	
+
+	// Send through telegrambot
+	const telegramToken = env.TELEGRAM_BOT_TOKEN;
+	if (!telegramToken) {
+		console.error("Error in notifyTelegram, TELEGRAM_BOT_TOKEN missing in Env.")
+		return;
+	}
+	const TELEGRAM_BASE_URL = 'https://api.telegram.org/';
+	// const telegramEndpoint = new URL(`bot${telegramToken}/sendMessage`, TELEGRAM_BASE_URL);
+	const endpoint = `https://api.telegram.org/bot${telegramToken}/sendMessage`
+	console.log(`Tg endpoint: ${endpoint}`)
+	try {
+		let payload = JSON.stringify({
+          chat_id: "@hacker_news_summary", //TODO fix
+          text: message,
+          parse_mode: "HTML",
+          reply_markup: replyMarkup,
+          disable_web_page_preview: false,
+        });
+		let header ={
+          "Content-Type": "application/json",
+        };
+		const res = await fetch(endpoint, {
+        method: "POST",
+        headers: header,
+        body: payload,
+      });
+		if (!res.ok) {
+        const bodyText = await res.text();
+        console.error(
+          "Error in notifyTelegram: sendMessage failed",
+          res.status,
+          res.statusText,
+          bodyText,
+        );
+      }
+	} catch(err) {
+		console.error("notifyTelegram: network or other error", err);
+	}
 }
 
 // ==================== Data process helpers ====================
@@ -360,7 +451,7 @@ async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 		return null;
 	}
 
-	const endpoint = new URL(config.apiEndpoint, BASE_URL);
+	const endpoint = new URL(config.apiEndpoint, HN_BASE_URL);
 	// Add print=pretty
 	endpoint.searchParams.append('print', 'pretty');
 	const res = await fetch(endpoint, {
@@ -383,10 +474,10 @@ async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 
 	if (key === 'updates') {
 		const dict = data as LivaDataUpdateDict; // typed
-		const item_list = Array.isArray(dict.items) ? (dict.items as number[]) : [];
-		const profile_list = Array.isArray(dict.profiles) ? (dict.profiles as string[]) : [];
+		const itemList = Array.isArray(dict.items) ? (dict.items as number[]) : [];
+		const profileList = Array.isArray(dict.profiles) ? (dict.profiles as string[]) : [];
 		// No limit applied for updates (so no slice cut)
-		return { items: item_list, profiles: profile_list }; // Promise<LivaDataUpdateDict>
+		return { items: itemList, profiles: profileList }; // Promise<LivaDataUpdateDict>
 	}
 
 	const l = data as number[]; // typed
@@ -417,8 +508,8 @@ async function apiFetchUpdates(): Promise<LivaDataUpdateDict> {
 }
 
 // Fetch a single Hacker News item by id
-async function apiFetchItem(item_id: number): Promise<HackerNewsItem | null> {
-	const endpoint = new URL(`item/${item_id}.json`, BASE_URL);
+async function apiFetchItem(itemId: number): Promise<HackerNewsItem | null> {
+	const endpoint = new URL(`item/${itemId}.json`, HN_BASE_URL);
 	endpoint.searchParams.append('print', 'pretty');
 
 	console.log('Fetching item from endpoint:', endpoint.toString());
@@ -429,7 +520,7 @@ async function apiFetchItem(item_id: number): Promise<HackerNewsItem | null> {
 		},
 	});
 	if (!res.ok) {
-		console.error('Failed to fetch item. item_id=', item_id, '  status=', res.status);
+		console.error('Failed to fetch item. id=', itemId, '  status=', res.status);
 		return null;
 	}
 	return (await res.json()) as HackerNewsItem;
