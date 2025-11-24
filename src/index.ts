@@ -12,7 +12,8 @@
  */
 
 const BASE_URL = 'https://hacker-news.firebaseio.com/v0/';
-
+const LIMIT_DEFAULT = 5;
+const SHARD_DEFAULT = 3;
 // Common Hacker News Item from
 
 type HackerNewsItem = {
@@ -45,9 +46,6 @@ export default {
 				const blogUrl = new URL('https://edwardzcn.me');
 				return fetch(blogUrl);
 		}
-		// Forward Hacker News API. Fetch item by id
-		// v0.1.0 regex
-		// const match = url.pathname.match();
 		// v0.2.0
 		const match = url.pathname.match(/^\/forward\/([A-Za-z_]+)(?:\/(\d+))?$/);
 		if (!match) {
@@ -124,39 +122,103 @@ export default {
 		// });
 		// return response;
 	},
+	// v0.3.0: scheduled handler (cron triggers)
 	async scheduled(event, env, ctx): Promise<void> {
 		// Entry point for scheduled events (cron jobs)
 		console.log('Scheduled event triggered at:', new Date().toISOString());
-		// ctx.waitUntil(handleCron(env));
+		ctx.waitUntil(handleCron(env));
 	},
 } satisfies ExportedHandler<Env>;
 
 // ==================== Cron Handler ====================
 
-// async function handleCron(env: Env): Promise<void> {
-// 	// 1. 获取 top story id 列表
-// 	const items_top_k: number = 20;
-// 	const items = await apiFetchTopItems(items_top_k);
+/**
+ * Splits an array of numbers into `n` interleaved shards.
+ * Equivalent to Python's [raw_array[i::n] for i in range(n)]
+ *
+ * @param raw_array - The input array of numbers to shard
+ * @param n - Number of shards
+ * @returns An array of `n` arrays with interleaved values
+ */
+function shardInterleaved(raw_array: number[], shards: number): number[][] {
+	if (shards <= 0) throw new Error('Number of shards must be positive');
+	const result: number[][] = Array.from({ length: shards }, () => []);
+	for (let i = 0; i < raw_array.length; i++) {
+		result[i % shards].push(raw_array[i]);
+	}
+	return result;
+}
+function shardSequential(raw_array: number[], shards: number): number[][] {
+	if (shards <= 0) throw new Error('Number of shards must be positive');
+	const result: number[][] = [];
+	const shard_size = Math.ceil(raw_array.length / shards)
+	for (let i = 0; i < raw_array.length; i += shard_size) {
+		result.push(raw_array.slice(i, i + shard_size));
+	}
+	return result;
+}
 
-// 	// 2. TODO 做过滤
-// 	// const filtered = filterItems(items);
+// Fetch top stories with no shards
+async function fetchTop(limit: number = LIMIT_DEFAULT): Promise<HackerNewsItem[]> {
+	return fetchItemsByIds(await apiFetchTopStoryIds(limit));
+}
 
-// 	// TODO: 未来可加：去重 (KV hasSent/markSent)，按时间过滤等
+// Fetch top stories with shards
+async function fetchTopWithShards(limit: number = LIMIT_DEFAULT, shards:number = SHARD_DEFAULT, shard_type: 'interleaved' | 'sequential' = 'interleaved'): Promise<HackerNewsItem[]> {
+	// Async parallel v0.3.0 with sharding
+	try {
+		const ids: number[] = await apiFetchTopStoryIds(limit);
+		const shard_ids: number[][] = shard_type === 'interleaved' ? shardInterleaved(ids, shards) : shardSequential(ids, shards);
+		// `shards`: the length of shard_ids
+		// const pp = shard_ids.map((shard): shard is number[] => fetchItemsByIds(shard))  // no need for type predicate/guard here
+		const shard_promises = shard_ids.map((shard) => fetchItemsByIds(shard))
+		const shard_results: HackerNewsItem[][] = await Promise.all(shard_promises);
+		// flat
+		const all_items = shard_results.flat();
+		return all_items;
+	} catch (err) {
+		console.error('Error in fetchTopWithShards:', err);
+		console.error('Return empty array of HackerNewsItem');
+		return [];
+	}
+}
 
-// 	// 3. 可选 LLM 处理（暂时只是留接口）
-// 	for (const item of items) {
-// 		const url = item.url ?? `https://news.ycombinator.com/item?id=${item.id}`;
-// 		const payload: NotificationPayload = {
-// 			title: item.title,
-// 			url,
-// 			score: item.score,
-// 			by: item.by,
-// 			// summary: await summarizeItemWithLLM(env, item) ?? undefined,
-// 		};
+async function fetchItemsByIds(ids: number []): Promise<HackerNewsItem[]> {
+	// Async parallel v0.2.0
+	try{
+		const promises = ids.map((id) => apiFetchItem(id));
+		const results = await Promise.all(promises);
+		return results.filter((item): item is HackerNewsItem => !!item);
+	} catch (err) {
+		console.error('Error in fetchItemsByIds:', err);
+		console.error('Return empty array of HackerNewsItem');
+		return [];
+	}
+}
 
-// 		await notifyAll(env, payload);
-// 	}
-// }
+
+
+
+async function handleCron(env: Env): Promise<void> {
+	// v0.3.0: fetch top stories like hackernewsbot
+	// const limit: number = 30;
+
+	// Use default limit for fetchTopWithShards (with shards)
+	// const items = await fetchTopWithShards();
+	// Use default limit for fetchTop (no shards)
+	console.log('Trigger Cron: fetch top stories without shards');
+	const topItems = await fetchTop();
+	// TODO: add logics for newItems, bestItems, etc.
+
+
+	// TODO Data Process (in the subgraph)
+	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent) 
+	// 2. TODO: Other filter Logic (by time, by source, llm process etc.)
+	// const filtered = filterItems(items);
+	// 3. LLM summary and LLM score (optional)
+	// 4. Notification (telegram  / email / webhook)
+	// await notifyAll(env, payload);
+}
 
 // ==================== Hacker News helpers ====================
 const LIVE_DATA_TYPES = ['max_item', 'top_hn', 'new_hn', 'best_hn', 'ask_hn', 'show_hn', 'job_hn', 'updates'];
@@ -305,27 +367,4 @@ async function apiFetchItem(item_id: number): Promise<HackerNewsItem | null> {
 		return null;
 	}
 	return (await res.json()) as HackerNewsItem;
-}
-
-async function apiFetchTopItems(limit = 30): Promise<HackerNewsItem[]> {
-	//// Sync sequential v0.1.0
-	// const ids = await apiFetchTopStoryIds(limit);
-	// const items: HackerNewsItem[] = [];
-	// for (const id of ids) {
-	// 	const item = await apiFetchItem(id);
-	// 	if (item) items.push(item);
-	// }
-
-	// return items;
-
-	// Async parallel v0.2.0
-	try {
-		const ids = await apiFetchTopStoryIds(limit);
-		const promises = ids.map((id) => apiFetchItem(id));
-		const results = await Promise.all(promises);
-		return results.filter((item): item is HackerNewsItem => !!item);
-	} catch (err) {
-		console.error('Error in apiFetchTopItems:', err);
-		return [];
-	}
 }

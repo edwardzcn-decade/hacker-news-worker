@@ -4,6 +4,12 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	"triggers": {
+		"crons": [
+			"*/3 * * * *",
+			"40 8 * * mon-fri",
+		]
+	},
 	"name": "hacker-news-worker",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-11-21",
