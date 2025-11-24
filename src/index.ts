@@ -21,14 +21,14 @@ type HackerNewsItem = {
 	type?: string; // one of "job", "story", "comment", "poll", or "pollopt"
 	by: string; // username
 	time: number; // unix timestamp
-	text: string; // content
+	text?: string; // content. HTML
 	dead?: boolean; // true if the item is dead
 	parent?: number; // the comment's parent: either another comment or the relevant story
 	poll?: number; // the pollopt's associated poll
 	kids?: number[]; // list of comments, in ranked display order
 	url?: string; // the url of the story
 	score?: number; // story score, or votes for a pollopt
-	title: string; // title HTML
+	title?: string; // title. HTML
 	parts?: number[]; // a list of related pollopts, in display order
 	descendants?: number; // in the case of stories or polls, the total comment count
 };
@@ -49,7 +49,7 @@ export default {
 		// v0.1.0 regex
 		// const match = url.pathname.match();
 		// v0.2.0
-		const match = url.pathname.match(/^\/forward\/([A-Za-z]+)(?:\/(\d+))?$/);
+		const match = url.pathname.match(/^\/forward\/([A-Za-z_]+)(?:\/(\d+))?$/);
 		if (!match) {
 			return new Response('Forward route /forward/xxx not match. Not Found', { status: 404 });
 		}
@@ -60,7 +60,7 @@ export default {
 				return new Response('Forward route /forward/item/ddd missing item id. Bad Request', { status: 400 });
 			}
 			console.log('Forward fetching item id:', num);
-			const n: number = parseInt(num, 10);
+			const id: number = parseInt(num, 10);
 
 			// const item = await apiFetchItem(n);
 			// if(!item) {
@@ -71,12 +71,21 @@ export default {
 			// });
 
 			// v0.2.0: refactor to a promise-based functional style
-			return apiFetchItem(n).then((item) =>
+			return apiFetchItem(id).then((item) =>
 				item
 					? new Response(JSON.stringify(item, null, 2), {
 							headers: { 'Content-Type': 'application/json' },
 					  })
 					: new Response('Forward fetch item not found', { status: 404 })
+			);
+		} else if (endpoint === 'max_item') {
+			console.log('Forward fetching max_item');
+			// v0.2.0: refactor to a promise-based functional style
+			return apiFetchMaxItemId().then(
+				(data) =>
+					new Response(JSON.stringify(data, null, 2), {
+						headers: { 'Content-Type': 'application/json' },
+					})
 			);
 		} else if (endpoint === 'updates') {
 			console.log('Forward fetching updates');
@@ -89,7 +98,7 @@ export default {
 						headers: { 'Content-Type': 'application/json' },
 					})
 			);
-		} else if(LIVE_DATA_TYPES.includes(endpoint as LiveDataKey)){
+		} else if (LIVE_DATA_TYPES.includes(endpoint as LiveDataKey)) {
 			// match `forward/topstories` and others, Bug free?
 			if (!num) {
 				return new Response('Forward route /forward/xxx/ddd missing limit number. Bad Request', { status: 400 });
@@ -281,8 +290,10 @@ async function apiFetchUpdates(): Promise<LivaDataUpdateDict> {
 
 // Fetch a single Hacker News item by id
 async function apiFetchItem(item_id: number): Promise<HackerNewsItem | null> {
-	const endpoint = new URL(`item/${item_id}`, BASE_URL);
+	const endpoint = new URL(`item/${item_id}.json`, BASE_URL);
 	endpoint.searchParams.append('print', 'pretty');
+
+	console.log("Fetching item from endpoint:", endpoint.toString());
 	const res = await fetch(endpoint, {
 		headers: {
 			'User-Agent': 'Cloudflare Worker - hacker-news-worker/v0.2.0',
