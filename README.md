@@ -4,8 +4,8 @@ Mainly work on Cloudflare Workers to fetch and process Hacker News data, forward
 
 ## TODO list
 
-+ [ ] Scheduler trigger (cron)
-+ [ ] Divede into API redirect and page redirect
++ [x] Scheduler trigger (cron)
++ [x] Devide into API redirect and page redirect
 + [ ] Secret for Telegram bot / Email / Webhook
 + [ ] LLM summary and scoring
 + [ ] Implement Email notification
