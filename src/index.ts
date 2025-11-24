@@ -14,6 +14,8 @@
 const BASE_URL = 'https://hacker-news.firebaseio.com/v0/';
 const LIMIT_DEFAULT = 5;
 const SHARD_DEFAULT = 3;
+const MIN_SCORE_DEFAULT = 100;
+const UNIX_TIME_DEFAULT = 0; // no time filter by default
 // Common Hacker News Item from
 
 type HackerNewsItem = {
@@ -151,7 +153,7 @@ function shardInterleaved(raw_array: number[], shards: number): number[][] {
 function shardSequential(raw_array: number[], shards: number): number[][] {
 	if (shards <= 0) throw new Error('Number of shards must be positive');
 	const result: number[][] = [];
-	const shard_size = Math.ceil(raw_array.length / shards)
+	const shard_size = Math.ceil(raw_array.length / shards);
 	for (let i = 0; i < raw_array.length; i += shard_size) {
 		result.push(raw_array.slice(i, i + shard_size));
 	}
@@ -164,14 +166,18 @@ async function fetchTop(limit: number = LIMIT_DEFAULT): Promise<HackerNewsItem[]
 }
 
 // Fetch top stories with shards
-async function fetchTopWithShards(limit: number = LIMIT_DEFAULT, shards:number = SHARD_DEFAULT, shard_type: 'interleaved' | 'sequential' = 'interleaved'): Promise<HackerNewsItem[]> {
+async function fetchTopWithShards(
+	limit: number = LIMIT_DEFAULT,
+	shards: number = SHARD_DEFAULT,
+	shard_type: 'interleaved' | 'sequential' = 'interleaved'
+): Promise<HackerNewsItem[]> {
 	// Async parallel v0.3.0 with sharding
 	try {
 		const ids: number[] = await apiFetchTopStoryIds(limit);
 		const shard_ids: number[][] = shard_type === 'interleaved' ? shardInterleaved(ids, shards) : shardSequential(ids, shards);
 		// `shards`: the length of shard_ids
 		// const pp = shard_ids.map((shard): shard is number[] => fetchItemsByIds(shard))  // no need for type predicate/guard here
-		const shard_promises = shard_ids.map((shard) => fetchItemsByIds(shard))
+		const shard_promises = shard_ids.map((shard) => fetchItemsByIds(shard));
 		const shard_results: HackerNewsItem[][] = await Promise.all(shard_promises);
 		// flat
 		const all_items = shard_results.flat();
@@ -183,9 +189,9 @@ async function fetchTopWithShards(limit: number = LIMIT_DEFAULT, shards:number =
 	}
 }
 
-async function fetchItemsByIds(ids: number []): Promise<HackerNewsItem[]> {
+async function fetchItemsByIds(ids: number[]): Promise<HackerNewsItem[]> {
 	// Async parallel v0.2.0
-	try{
+	try {
 		const promises = ids.map((id) => apiFetchItem(id));
 		const results = await Promise.all(promises);
 		return results.filter((item): item is HackerNewsItem => !!item);
@@ -196,9 +202,6 @@ async function fetchItemsByIds(ids: number []): Promise<HackerNewsItem[]> {
 	}
 }
 
-
-
-
 async function handleCron(env: Env): Promise<void> {
 	// v0.3.0: fetch top stories like hackernewsbot
 	// const limit: number = 30;
@@ -207,17 +210,80 @@ async function handleCron(env: Env): Promise<void> {
 	// const items = await fetchTopWithShards();
 	// Use default limit for fetchTop (no shards)
 	console.log('Trigger Cron: fetch top stories without shards');
-	const topItems = await fetchTop();
+	const topItems: HackerNewsItem[] = await fetchTop();
 	// TODO: add logics for newItems, bestItems, etc.
 
-
+	// +++++++++++++++++++ Data Process Calling +++++++++++++++++++++++
+	// TODO: design process type?
+	const result = [];
 	// TODO Data Process (in the subgraph)
-	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent) 
-	// 2. TODO: Other filter Logic (by time, by source, llm process etc.)
-	// const filtered = filterItems(items);
-	// 3. LLM summary and LLM score (optional)
-	// 4. Notification (telegram  / email / webhook)
-	// await notifyAll(env, payload);
+	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
+	try {
+		const filterMinScore: number = MIN_SCORE_DEFAULT;
+		const filterStartTime = UNIX_TIME_DEFAULT;
+		const filtered = filterByStartTime(filterByMinScore(topItems, filterMinScore), filterStartTime);
+
+		// TODO Actual LLM summary and LLM score (optional)
+		for (const item of filtered) {
+			const llm_summary = await summaryLLM(env, item);
+			const llm_score = await scoreLLM(env, item);
+			console.log('Processed Item ID after filter:', item.id, '  LLM Score:', llm_score, '  LLM Summary:', llm_summary);
+			result.push({
+				...item,
+				llm_summary: llm_summary,
+				llm_score: llm_score,
+			});
+		}
+	} catch (err) {
+		console.error('Error in data processing:', err);
+	}
+	// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	// 4. TODO Notification (telegram  / email / webhook)
+	await notifyAll(
+		env,
+		result.map((item) => item.id)
+	);
+}
+
+// ========= Notification Channels =========
+
+async function notifyAll(env: Env, payloads: any[]): Promise<void> {
+	// v0.3.0 Only print logs to console
+	for (const p of payloads) {
+		console.log(
+			'[Notify]',
+			`[Score: ${p.score}][Title: ${p.title}] - ${p.url} by ${p.by}`,
+			`[LLM Summary: ${p.llm_summary}]`,
+			`[LLM Score: ${p.llm_score}]`
+		);
+	}
+
+	// TODO: for v0.3.1 add notifyTelegram, notifyEmail, notifyWebhook
+	// await notifyTelegram(env, payloads);
+	// await notifyEmail(env, payloads);
+	// await notifyWebhook(env, payloads);
+}
+
+// ==================== Data process helpers ====================
+
+function filterByMinScore(items: HackerNewsItem[], minScore: number): HackerNewsItem[] {
+	return items.filter((item) => (item.score ?? 0) >= minScore);
+}
+function filterByStartTime(items: HackerNewsItem[], startTime: number): HackerNewsItem[] {
+	return items.filter((item) => (item.time ?? 0) >= startTime);
+}
+
+// LLM process placeholder
+async function summaryLLM(env: Env, item: HackerNewsItem): Promise<string | null> {
+	// TODO placeholder for LLM summary
+	// return item.title if exists now
+	return item.title ?? null;
+}
+async function scoreLLM(env: Env, item: HackerNewsItem): Promise<number | null> {
+	// TODO placeholder for LLM score
+	// return item.score if exists now
+	return item.score ?? null;
 }
 
 // ==================== Hacker News helpers ====================
@@ -355,7 +421,7 @@ async function apiFetchItem(item_id: number): Promise<HackerNewsItem | null> {
 	const endpoint = new URL(`item/${item_id}.json`, BASE_URL);
 	endpoint.searchParams.append('print', 'pretty');
 
-	console.log("Fetching item from endpoint:", endpoint.toString());
+	console.log('Fetching item from endpoint:', endpoint.toString());
 	const res = await fetch(endpoint, {
 		headers: {
 			'User-Agent': 'Cloudflare Worker - hacker-news-worker/v0.2.0',
