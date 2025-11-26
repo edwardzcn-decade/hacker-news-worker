@@ -1,5 +1,4 @@
 import { encode } from './utils/base62';
-// import { Env } from './utils/types';
 import { MIN_SCORE_DEFAULT, UNIX_TIME_DEFAULT } from './utils/config';
 import {
 	LIVE_DATA_TYPES,
@@ -25,6 +24,8 @@ export default {
 			case '/blog':
 				const blogUrl = new URL('https://edwardzcn.me');
 				return fetch(blogUrl);
+			case '/test':
+				console.log(`Test merging local env ${env.TEST_VARIABLE}`);
 		}
 		// v0.2.0
 		const match = url.pathname.match(/^\/forward\/([A-Za-z_]+)(?:\/(\d+))?$/);
@@ -94,38 +95,47 @@ export default {
 
 // ==================== Cron Handler ====================
 async function handleCron(env: Env): Promise<void> {
-	const kvm = new KVManager(env.HACKER_NEWS_WORKER, 'kv_test');
+	const kvm = new KVManager(env.HACKER_NEWS_WORKER, 'HN-', 'TTL', 3600);
 
 	console.log('[Cron Handler] Fetch top stories without shards with Hacker News API');
 	// Use default limit for fetchTopWithShards (with shards)
 	// const items = await fetchTopWithShards();
 	// Use default limit for fetchTop (no shards)
 	const topItems: HackerNewsItem[] = await fetchTop();
-	let filtered: HackerNewsItem[]
+	let filtered: HackerNewsItem[];
 	// TODO: add logics for newItems, bestItems, etc.
 
 	// +++++++++++++++++++ Data Process Calling +++++++++++++++++++++++
 	// const results = [];
 	// TODO Data Process (in the subgraph)
 	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
-	const cachedIds = (await kvm.list()).map((cachedItem) => cachedItem.item.id);
-	console.log(`[Cron Handler][Data Process] ✅ Already cached item ids:${cachedIds}`);
+	const cachedStringIds = (await kvm.list()).map((keys) => keys[0]);
+	console.log(`[Cron Handler][Data Process] ⚠️ Already cached ids should have prefix like HN-`);
+	console.log(`[Cron Handler][Data Process] ⚠️ Already cached item ids:${cachedStringIds}`);
+	// Cut prefix and transform to number list
+	const cachedNumberIds = cachedStringIds
+		.map((id) => (id.startsWith('HN-') ? id.slice('HN-'.length) : id))
+		.map((s) => Number(s))
+		.filter((n) => Number.isFinite(n));
+	console.log(`[Cron Handler][Data Process] ⚠️ Transform to number item ids:${cachedNumberIds}`)
 	try {
 		const filterMinScore: number = MIN_SCORE_DEFAULT;
 		const filterStartTime = UNIX_TIME_DEFAULT;
 		// const filtered = filterByStartTime(filterByMinScore(topItems, filterMinScore), filterStartTime);
 		// v0.3.1 filter once with cached id list
 		filtered = topItems.filter(
-			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !(item.id in cachedIds)
+			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !(item.id in cachedNumberIds)
 		);
-		const promises = filtered.map((item) => kvm.create(item));
+		const promises = filtered.map((item) => kvm.createHnItemCache(item));
 		(await Promise.all(promises)).map((itemCache) => {
 			let i = itemCache.item;
 			const llmSummary = testSummaryLLM(env, i);
-			const llmScore = testScoreLLM(env, i)
-			console.log(`[Cron Handler][Data Process] Processed Item ID after filter and cached new item id:${i.id}, uuid:${itemCache.uuid}, at ceated:${itemCache.createdAt}`)
-			console.log(`[Cron Handler][Data Process] Cached title:${i.title}`)
-			console.log(`[Cron Handler][Data Process] Show LLM Score:${llmScore}, LLM Summary:${llmSummary}`)
+			const llmScore = testScoreLLM(env, i);
+			console.log(
+				`[Cron Handler][Data Process] Processed Item ID after filter and cached new item id:${i.id}, uuid:${itemCache.uuid}, at ceated:${itemCache.createdAt}`
+			);
+			console.log(`[Cron Handler][Data Process] Cached title:${i.title}`);
+			console.log(`[Cron Handler][Data Process] Show LLM Score:${llmScore}, LLM Summary:${llmSummary}`);
 		});
 		// TODO Actual LLM summary and LLM score (optional)
 		// for (const item of filtered) {
