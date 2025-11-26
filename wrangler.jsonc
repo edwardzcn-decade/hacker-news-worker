@@ -32,6 +32,8 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
+		"KV_TTL_SECS": 14400,
+		"TELEGRAM_CHAT_ID": "@hacker_news_summary",
 	},
 	"kv_namespaces": [
 		{

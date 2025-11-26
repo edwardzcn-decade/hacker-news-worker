@@ -24,8 +24,6 @@ export default {
 			case '/blog':
 				const blogUrl = new URL('https://edwardzcn.me');
 				return fetch(blogUrl);
-			case '/test':
-				console.log(`Test merging local env ${env.TEST_VARIABLE}`);
 		}
 		// v0.2.0
 		const match = url.pathname.match(/^\/forward\/([A-Za-z_]+)(?:\/(\d+))?$/);
@@ -95,7 +93,7 @@ export default {
 
 // ==================== Cron Handler ====================
 async function handleCron(env: Env): Promise<void> {
-	const kvm = new KVManager(env.HACKER_NEWS_WORKER, 'HN-', 'TTL', 3600);
+	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, 'HN-', 'TTL', env.KV_TTL_SECS);
 
 	console.log('[Cron Handler] Fetch top stories without shards with Hacker News API');
 	// Use default limit for fetchTopWithShards (with shards)
@@ -107,9 +105,7 @@ async function handleCron(env: Env): Promise<void> {
 
 	// +++++++++++++++++++ Data Process Calling +++++++++++++++++++++++
 	// const results = [];
-	// TODO Data Process (in the subgraph)
-	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
-	const cachedStringIds = (await kvm.list()).map((keys) => keys[0]);
+	const cachedStringIds = await kvm.listKeys();
 	console.log(`[Cron Handler][Data Process] ⚠️ Already cached ids should have prefix like HN-`);
 	console.log(`[Cron Handler][Data Process] ⚠️ Already cached item ids:${cachedStringIds}`);
 	// Cut prefix and transform to number list
@@ -124,7 +120,7 @@ async function handleCron(env: Env): Promise<void> {
 		// const filtered = filterByStartTime(filterByMinScore(topItems, filterMinScore), filterStartTime);
 		// v0.3.1 filter once with cached id list
 		filtered = topItems.filter(
-			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !(item.id in cachedNumberIds)
+			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !cachedNumberIds.includes(item.id)
 		);
 		const promises = filtered.map((item) => kvm.createHnItemCache(item));
 		(await Promise.all(promises)).map((itemCache) => {
@@ -187,7 +183,7 @@ async function notifyTelegram(env: Env, p: any): Promise<void> {
 	const story_id_int: number = p.id;
 	const story_id: string = story_id_int.toString();
 	const short_id: string = encode(story_id_int);
-	const hn_url: URL = new URL('item', 'https://new.ycombinator.com/');
+	const hn_url: URL = new URL('item', 'https://news.ycombinator.com/');
 	hn_url.searchParams.append('id', story_id);
 
 	let story_url = p.url;
@@ -241,7 +237,7 @@ async function notifyTelegram(env: Env, p: any): Promise<void> {
 	console.log(`Tg endpoint: ${endpoint}`);
 	try {
 		let payload = JSON.stringify({
-			chat_id: '@hacker_news_summary', //TODO fix
+			chat_id: env.TELEGRAM_CHAT_ID,
 			text: message,
 			parse_mode: 'HTML',
 			reply_markup: replyMarkup,
