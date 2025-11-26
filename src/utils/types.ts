@@ -27,6 +27,8 @@ declare global {
 	namespace Cloudflare {
 		interface Env {
 			TEST_VARIABLE: 'test_value';
+			KV_TTL_SECS: 14400;
+			TELEGRAM_CHAT_ID: '@hacker_news_summary';
 		}
 	}
 }

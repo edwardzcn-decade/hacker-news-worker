@@ -3,7 +3,7 @@
  */
 
 import { HackerNewsItem } from './apis/hn';
-import { checkMetaLimit, getUtf8BytesLength } from './utils/check';
+import { checkMetaLimit } from './utils/check';
 interface HackerNewsItemCache {
 	uuid: string;
 	item: HackerNewsItem;
@@ -12,6 +12,8 @@ interface HackerNewsItemCache {
 	is_expired: boolean;
 }
 
+const TTL_KEY_NAME_DEFAULT = 'TTL'
+const TTL_KEY_VALUE_DEFAULT = 3600
 export class KVManager {
 	/**
 	 * Create a new KVManager instance.
@@ -20,8 +22,27 @@ export class KVManager {
 	 * @param ttlKey Key storing the default TTL value.
 	 * @param ttlDefault Fallback/Default TTL value in seconds.
 	 */
-	constructor(private kv: KVNamespace, private prefix: string, private ttlKey: string = 'TTL', private ttlDefault: number = 3600) {}
+	private constructor(private kv: KVNamespace, private prefix: string, private ttlKey: string = TTL_KEY_NAME_DEFAULT, private ttlDefault: number = TTL_KEY_VALUE_DEFAULT) {}
 
+	static async init(
+		kv: KVNamespace,
+		prefix: string,
+		ttlKey: string,
+		ttlDefault: number
+	){
+		const mgr = new KVManager(kv, prefix, ttlKey, ttlDefault);
+		try {
+			// one time fetch and one time put ttl key-value pair
+			const current = await kv.get(ttlKey, 'text');
+			if (!current) {
+				await kv.put(ttlKey, String(ttlDefault));
+			}
+		} catch (err) {
+			console.error(`[KVManager] ❌ Fail in KVManager init. Error: ${err}`)
+			throw err
+		}
+		return mgr;
+	}
 	/**
 	 * List keys name and metadata.
 	 * @param prefix Optional prefix filter.
@@ -180,7 +201,7 @@ export class KVManager {
 		const kkey: string = `${kprefex}${newHnItem.item.id}`;
 		const kmeta: string = `${newHnItem.uuid}`;
 		// Pass ttl directly
-		await this.create(kkey, kmeta, JSON.stringify(newHnItem), 3600);
+		await this.create(kkey, kmeta, JSON.stringify(newHnItem));
 		// await this.kv.put(this.hnKey, JSON.stringify(newHnItem), {
 		// 	expirationTtl: 300,
 		// });

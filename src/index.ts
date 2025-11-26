@@ -95,7 +95,7 @@ export default {
 
 // ==================== Cron Handler ====================
 async function handleCron(env: Env): Promise<void> {
-	const kvm = new KVManager(env.HACKER_NEWS_WORKER, 'HN-', 'TTL', 3600);
+	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, 'HN-', 'TTL', env.KV_TTL_SECS);
 
 	console.log('[Cron Handler] Fetch top stories without shards with Hacker News API');
 	// Use default limit for fetchTopWithShards (with shards)
@@ -107,8 +107,6 @@ async function handleCron(env: Env): Promise<void> {
 
 	// +++++++++++++++++++ Data Process Calling +++++++++++++++++++++++
 	// const results = [];
-	// TODO Data Process (in the subgraph)
-	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
 	const cachedStringIds = await kvm.listKeys();
 	console.log(`[Cron Handler][Data Process] ⚠️ Already cached ids should have prefix like HN-`);
 	console.log(`[Cron Handler][Data Process] ⚠️ Already cached item ids:${cachedStringIds}`);
@@ -124,7 +122,7 @@ async function handleCron(env: Env): Promise<void> {
 		// const filtered = filterByStartTime(filterByMinScore(topItems, filterMinScore), filterStartTime);
 		// v0.3.1 filter once with cached id list
 		filtered = topItems.filter(
-			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !(item.id in cachedNumberIds)
+			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !cachedNumberIds.includes(item.id)
 		);
 		const promises = filtered.map((item) => kvm.createHnItemCache(item));
 		(await Promise.all(promises)).map((itemCache) => {
@@ -241,7 +239,7 @@ async function notifyTelegram(env: Env, p: any): Promise<void> {
 	console.log(`Tg endpoint: ${endpoint}`);
 	try {
 		let payload = JSON.stringify({
-			chat_id: '@hacker_news_summary', //TODO fix
+			chat_id: env.TELEGRAM_CHAT_ID,
 			text: message,
 			parse_mode: 'HTML',
 			reply_markup: replyMarkup,
