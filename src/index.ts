@@ -24,8 +24,6 @@ export default {
 			case '/blog':
 				const blogUrl = new URL('https://edwardzcn.me');
 				return fetch(blogUrl);
-			case '/test':
-				console.log(`Test merging local env ${env.TEST_VARIABLE}`);
 		}
 		// v0.2.0
 		const match = url.pathname.match(/^\/forward\/([A-Za-z_]+)(?:\/(\d+))?$/);
