@@ -33,7 +33,14 @@
 	 */
 	"vars": {
 		"TEST_VARIABLE": "test_value"
-	}
+	},
+	"kv_namespaces": [
+		{
+			"binding": "HACKER_NEWS_WORKER",
+			"id": "b02cf94318b84768b7b2f60029feb958",
+			"remote": false // Set true to connect to the remote resource instead of a local resource
+		}
+	]
 	/**
 	 * Note: Use secrets to store sensitive data.
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
