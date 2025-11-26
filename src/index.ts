@@ -1,5 +1,5 @@
 import { encode } from './utils/base62';
-import { Env } from './utils/types';
+// import { Env } from './utils/types';
 import { MIN_SCORE_DEFAULT, UNIX_TIME_DEFAULT } from './utils/config';
 import {
 	LIVE_DATA_TYPES,
@@ -11,6 +11,8 @@ import {
 	apiFetchUpdates,
 	fetchTop,
 } from './apis/hn';
+
+import { KVManager } from './kv';
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
@@ -27,35 +29,26 @@ export default {
 		// v0.2.0
 		const match = url.pathname.match(/^\/forward\/([A-Za-z_]+)(?:\/(\d+))?$/);
 		if (!match) {
-			return new Response('Forward route /forward/xxx not match. Not Found', { status: 404 });
+			return new Response(`Forward route with no match branch. Not Found ${url.pathname}`, { status: 404 });
 		}
 
 		const [_, endpoint, num] = match;
 		if (endpoint === 'item') {
 			if (!num) {
-				return new Response('Forward route /forward/item/ddd missing item id. Bad Request', { status: 400 });
+				return new Response(`Forward route /forward/${endpoint} missing item id. Bad Request`, { status: 400 });
 			}
-			console.log('Forward fetching item id:', num);
+			console.log(`Forward route /forward/${endpoint}, fetching item with id:${num}.`);
 			const id: number = parseInt(num, 10);
-
-			// const item = await apiFetchItem(n);
-			// if(!item) {
-			// 	return new Response('Forward fetch item not found', { status: 404 });
-			// }
-			// return new Response(JSON.stringify(item, null, 2), {
-			// 	headers: { 'Content-Type': 'application/json' },
-			// });
-
 			// v0.2.0: refactor to a promise-based functional style
 			return apiFetchItem(id).then((item) =>
 				item
 					? new Response(JSON.stringify(item, null, 2), {
 							headers: { 'Content-Type': 'application/json' },
 					  })
-					: new Response('Forward fetch item not found', { status: 404 })
+					: new Response(`Forward route /forward/${endpoint}, target fetching item with id:${num} not found.`, { status: 404 })
 			);
 		} else if ((endpoint as LiveDataKey) === 'max_item') {
-			console.log('Forward fetching max_item');
+			console.log(`Forward route /forward/${endpoint}, fetching max_item.`);
 			// v0.2.0: refactor to a promise-based functional style
 			return apiFetchMaxItemId().then(
 				(data) =>
@@ -64,9 +57,7 @@ export default {
 					})
 			);
 		} else if ((endpoint as LiveDataKey) === 'updates') {
-			console.log('Forward fetching updates');
-			// Omit limit for updates
-
+			console.log(`Forward route /forward/${endpoint}, fetching updates.`);
 			// v0.2.0: refactor to a promise-based functional style
 			return apiFetchUpdates().then(
 				(data) =>
@@ -75,11 +66,12 @@ export default {
 					})
 			);
 		} else if (LIVE_DATA_TYPES.includes(endpoint as LiveDataKey)) {
-			// match `forward/topstories` and others, Bug free?
+			// match `forward/topstories` and others
+			// Bug free but with complicated type notations, TODO?
 			if (!num) {
-				return new Response('Forward route /forward/xxx/ddd missing limit number. Bad Request', { status: 400 });
+				// TODO relax limit for hn_news etc.
+				return new Response(`Forward route /forward/${endpoint} missing limit number. Bad Request`, { status: 400 });
 			}
-			console.log('Forward limit number:', num);
 			const n: number = parseInt(num, 10);
 			return apiFetchLiveData(endpoint as Exclude<LiveDataKey, 'max_item' | 'updates'>, n).then(
 				(data) =>
@@ -88,18 +80,10 @@ export default {
 					})
 			);
 		}
-		return new Response('Forward route unknown endpoint. Not Found', { status: 404 });
-		// const url = new URL(`item/${itemId}.json`, HN_BASE_URL);
-		// url.searchParams.append('print', 'pretty');
-		// console.log('Full URL string:', url.toString());
-		// const response = await fetch(url, {
-		// 	headers: {
-		// 		'User-Agent': 'Cloudflare Worker - hacker-news-worker/v0.1.0',
-		// 		Accept: 'application/json',
-		// 	},
-		// });
-		// return response;
+		console.warn('⚠️ Forward route pass regex match but fail to resolve.');
+		return new Response(`Forward route /forward/${endpoint} matched but unknown/unresolved endpoint.`, { status: 404 });
 	},
+
 	// v0.3.0: scheduled handler (cron triggers)
 	async scheduled(event, env, ctx): Promise<void> {
 		// Entry point for scheduled events (cron jobs)
@@ -110,44 +94,58 @@ export default {
 
 // ==================== Cron Handler ====================
 async function handleCron(env: Env): Promise<void> {
-	// v0.3.0: fetch top stories like hackernewsbot
-	// const limit: number = 30;
+	const kvm = new KVManager(env.HACKER_NEWS_WORKER, 'kv_test');
 
+	console.log('[Cron Handler] Fetch top stories without shards with Hacker News API');
 	// Use default limit for fetchTopWithShards (with shards)
 	// const items = await fetchTopWithShards();
 	// Use default limit for fetchTop (no shards)
-	console.log('Trigger Cron: fetch top stories without shards');
 	const topItems: HackerNewsItem[] = await fetchTop();
+	let filtered: HackerNewsItem[]
 	// TODO: add logics for newItems, bestItems, etc.
 
 	// +++++++++++++++++++ Data Process Calling +++++++++++++++++++++++
-	// TODO: design process type?
-	const results = [];
+	// const results = [];
 	// TODO Data Process (in the subgraph)
 	// 1. TODO: Filter, remove duplicate (KV hasSent/markSent)
+	const cachedIds = (await kvm.list()).map((cachedItem) => cachedItem.item.id);
+	console.log(`[Cron Handler][Data Process] ✅ Already cached item ids:${cachedIds}`);
 	try {
 		const filterMinScore: number = MIN_SCORE_DEFAULT;
 		const filterStartTime = UNIX_TIME_DEFAULT;
-		const filtered = filterByStartTime(filterByMinScore(topItems, filterMinScore), filterStartTime);
-
+		// const filtered = filterByStartTime(filterByMinScore(topItems, filterMinScore), filterStartTime);
+		// v0.3.1 filter once with cached id list
+		filtered = topItems.filter(
+			(item) => (item.score ?? 0) >= filterMinScore && (item.time ?? 0) >= filterStartTime && !(item.id in cachedIds)
+		);
+		const promises = filtered.map((item) => kvm.create(item));
+		(await Promise.all(promises)).map((itemCache) => {
+			let i = itemCache.item;
+			const llmSummary = testSummaryLLM(env, i);
+			const llmScore = testScoreLLM(env, i)
+			console.log(`[Cron Handler][Data Process] Processed Item ID after filter and cached new item id:${i.id}, uuid:${itemCache.uuid}, at ceated:${itemCache.createdAt}`)
+			console.log(`[Cron Handler][Data Process] Cached title:${i.title}`)
+			console.log(`[Cron Handler][Data Process] Show LLM Score:${llmScore}, LLM Summary:${llmSummary}`)
+		});
 		// TODO Actual LLM summary and LLM score (optional)
-		for (const item of filtered) {
-			const llmSummary = await summaryLLM(env, item);
-			const llmScore = await scoreLLM(env, item);
-			console.log('Processed Item ID after filter:', item.id, '  LLM Score:', llmScore, '  LLM Summary:', llmSummary);
-			results.push({
-				...item,
-				llmSummary: llmSummary,
-				llmScore: llmScore,
-			});
-		}
+		// for (const item of filtered) {
+		// 	const llmSummary = await summaryLLM(env, item);
+		// 	const llmScore = await scoreLLM(env, item);
+		// 	console.log('Processed Item ID after filter:', item.id, '  LLM Score:', llmScore, '  LLM Summary:', llmSummary);
+		// 	results.push({
+		// 		...item,
+		// 		llmSummary: llmSummary,
+		// 		llmScore: llmScore,
+		// 	});
+		// }
 	} catch (err) {
 		console.error('Error in data processing:', err);
+		filtered = [];
 	}
 	// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 	// 4. TODO Notification (telegram  / email / webhook)
-	await notifyAll(env, results);
+	await notifyAll(env, filtered);
 }
 
 // ========= Notification Channels =========
@@ -266,12 +264,20 @@ function filterByStartTime(items: HackerNewsItem[], startTime: number): HackerNe
 }
 
 // LLM process placeholder
-async function summaryLLM(env: Env, item: HackerNewsItem): Promise<string | null> {
+function testSummaryLLM(env: Env, item: HackerNewsItem): string | null {
+	return item.title ?? null;
+}
+function testScoreLLM(env: Env, item: HackerNewsItem): number {
+	return item.score ?? -1;
+}
+
+async function asyncSummaryLLM(env: Env, item: HackerNewsItem): Promise<string | null> {
 	// TODO placeholder for LLM summary
 	// return item.title if exists now
 	return item.title ?? null;
 }
-async function scoreLLM(env: Env, item: HackerNewsItem): Promise<number | null> {
+
+async function asyncScoreLLM(env: Env, item: HackerNewsItem): Promise<number | null> {
 	// TODO placeholder for LLM score
 	// return item.score if exists now
 	return item.score ?? null;

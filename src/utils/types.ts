@@ -2,18 +2,23 @@
  * Type definitions and env/secret bindings
  */
 
-export interface Env {
-	// Binding for the workers AI API
+// Use auto generate Env by `npx wrangler types`
+// No need to define own env.
 
-	AI: Ai;
+// export interface Env {
+// 	// Binding for the workers AI API
 
-	// Binding for static assets.
-	ASSETS: { fetch: (request: Request) => Promise<Response> };
+// 	AI: Ai;
 
-	// Binding for telegram bot token/secret
-	TELEGRAM_BOT_TOKEN: string;
+// 	// Binding for static assets.
+// 	ASSETS: { fetch: (request: Request) => Promise<Response> };
 
-	// TODO
-	// Binding for other tokens/secrets
-	MY_FIRST_TOKEN: string;
-}
+// 	// Binding for telegram bot token/secret
+// 	TELEGRAM_BOT_TOKEN: string;
+
+// 	// Binding for other tokens/secrets
+// 	MY_FIRST_TOKEN: string;
+
+// 	// Binding KV
+// 	HACKER_NEWS_WORKER: KVNamespace;
+// }
