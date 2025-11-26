@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"triggers": {
 		"crons": [
-			"*/10 * * * *",
+			"*/5 * * * *",
 			"40 8 * * mon-fri",
 		]
 	},
@@ -32,7 +32,6 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"TEST_VARIABLE": "test_value"
 	},
 	"kv_namespaces": [
 		{
