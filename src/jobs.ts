@@ -26,7 +26,7 @@ export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 	);
 	try {
 		const promises = filteredItems.map((item) => {
-			const kk = keyWithPrefix(item.id);
+			const kk = keyWithPrefix(item.id, hnPrefix);
 			const vv = JSON.stringify(item);
 			console.log(
 				`[Job TG] Try cache id:${item.id} (with metadata {uuid: ... llm_summary: ... llm_score: ...})`,

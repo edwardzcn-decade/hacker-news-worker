@@ -106,7 +106,7 @@ export default {
 				break;
 			default:
 				console.warn(
-					`[Scheduled] ⚠️ Mismatch cron expression:${controller.cron}.\n[Scheduled] ⚠️ Read https://github.com/edwardzcn-decade/hacker-news-worker/tree/main?tab=readme-ov-file#scheduled-jobs`,
+					`[Scheduled] ⚠️ Mismatch cron expression:${controller.cron}. Read https://github.com/edwardzcn-decade/hacker-news-worker/tree/main?tab=readme-ov-file#scheduled-jobs`,
 				);
 		}
 	},
