@@ -3,7 +3,7 @@
  */
 
 import { HackerNewsItem } from './apis/hn';
-import { checkMetaLimit } from './utils/check';
+import { checkMetaLimit } from './utils/tools';
 interface HackerNewsItemCache {
 	uuid: string;
 	item: HackerNewsItem;
@@ -147,11 +147,11 @@ export class KVManager {
 	 * Store a value with metadata and TTL.
 	 *
 	 * @param key KV key (expects HN- or hn: prefix).
-	 * @param meta Metadata string stored under `m`.
 	 * @param value Value to put.
+	 * @param meta Metadata object.
 	 * @param ttl Optional expiration TTL override in seconds.
 	 */
-	async create(key: string, meta: string, value: string, ttl?: number): Promise<void> {
+	async create(key: string, value: string, meta?: object, ttl?: number): Promise<void> {
 		if (key.startsWith('HN-') || key.startsWith('hn:')) {
 			console.log(`[KVManager] Try creat cache for key:${key}`);
 		} else {
@@ -159,13 +159,13 @@ export class KVManager {
 				`[KVManager] ⚠️ Try create cache for key without proper prefix, key:${key}. Please check.`,
 			);
 		}
-		if (!checkMetaLimit({ m: meta })) {
+		if (!checkMetaLimit(meta ?? {})) {
 			console.warn(`[KVManager] ⚠️ Metadata ${meta} too large for key:${key}}. Please check.`);
 		}
 		const options: KVNamespacePutOptions = {
 			// expiration not used
 			expirationTtl: ttl ?? this.ttlDefault,
-			metadata: { m: meta },
+			metadata: meta ?? {},
 		};
 		return this.kv.put(key, value, options);
 	}
@@ -225,10 +225,7 @@ export class KVManager {
 		const kkey: string = `${kprefex}${newHnItem.item.id}`;
 		const kmeta: string = `${newHnItem.uuid}`;
 		// Pass ttl directly
-		await this.create(kkey, kmeta, JSON.stringify(newHnItem));
-		// await this.kv.put(this.hnKey, JSON.stringify(newHnItem), {
-		// 	expirationTtl: 300,
-		// });
+		await this.create(kkey, JSON.stringify(newHnItem), { uuid: kmeta });
 		return newHnItem;
 	}
 }

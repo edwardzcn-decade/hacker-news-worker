@@ -1,6 +1,11 @@
-// src/utils/base62.ts
+const METADATA_LIMIT_BYTE_LENGTH = 1024;
+const PREFIX_DEFAULT = 'DEFAULT';
 const ALPHABET = '23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
+export const FOUR_HOURS = 4 * HOUR_MS;
+export const TWO_DAYS = 2 * DAY_MS;
 /**
  * Encode a positive number in Base X.
  *
@@ -91,4 +96,36 @@ export function decodeBigInt(str: string, alphabet: string = ALPHABET): bigint {
 	}
 
 	return num;
+}
+
+export function getUtf8BytesLength(str: string): number {
+	return new TextEncoder().encode(str).length;
+}
+
+export function checkMetaLimit(metadata: object): boolean {
+	return getUtf8BytesLength(JSON.stringify(metadata)) <= METADATA_LIMIT_BYTE_LENGTH;
+}
+
+export function keyWithPrefix(rawKey: string, rawPrefix?: string): string;
+export function keyWithPrefix(rawKey: number, rawPrefix?: string): string;
+export function keyWithPrefix(rawKey: string | number, rawPrefix?: string): string {
+	return `${prefixFactory(rawPrefix)}${rawKey}`;
+}
+
+export function prefixFactory(str?: string): string {
+	if (str === undefined || str.trim() === '') {
+		return `${PREFIX_DEFAULT}-`;
+	}
+	const cleaned = str
+		.trim()
+		.replace(/[^A-Za-z]+$/, '')
+		.toUpperCase();
+	if (cleaned === '') {
+		return `${PREFIX_DEFAULT}-`;
+	}
+	return `${cleaned}-`;
+}
+
+export function escapeHtml(text: string): string {
+	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

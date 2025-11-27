@@ -1,3 +1,7 @@
+# Personal
+.DS_Store
+example.txt
+example.txt.sig
 # Logs
 
 logs
