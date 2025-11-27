@@ -233,9 +233,10 @@ async function notifyTg(env: Env, p: any): Promise<void> {
 		);
 		return;
 	}
-	const tgEndpoint = new URL(`bot${tgToken}/sendMessage`, TG_BASE_URL);
-	// const endpoint = `https://api.telegram.org/bot${tgToken}/sendMessage`;
-	console.log(`[Notify TG] Telegram endpoint: ${tgEndpoint}`);
+	// NOTE(#6) tg bot token like `bot91918237:ASDFSAF` will trigger scheme-like problem and let URL constructor omit base url.
+	const tgEndpoint = new URL(TG_BASE_URL);
+	tgEndpoint.pathname = `bot${tgToken}/sendMessage`
+	console.log(`[Notify TG] Telegram endpoint:${tgEndpoint}`);
 	try {
 		let payload = JSON.stringify({
 			chat_id: env.TG_CHAT_ID,
@@ -254,10 +255,10 @@ async function notifyTg(env: Env, p: any): Promise<void> {
 		});
 		if (!res.ok) {
 			const bodyText = await res.text();
-			console.error('Error in notifyTg: sendMessage failed', res.status, res.statusText, bodyText);
+			console.error('[Notify TG] Error in notifyTg: sendMessage failed', res.status, res.statusText, bodyText);
 		}
 	} catch (err) {
-		console.error('notifyTg: network or other error', err);
+		console.error('[Notify TG] notifyTg: network or other error', err);
 	}
 }
 
