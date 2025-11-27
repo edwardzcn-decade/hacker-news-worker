@@ -1,16 +1,13 @@
 // src/utils/base62.ts
 const ALPHABET = '23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
 
-// No need to export
-// export const DEFAULT_ALPHABET = ALPHABET;
-
+/**
+ * Encode a positive number in Base X.
+ *
+ * @param num Number to encode (>= 0).
+ * @param alphabet Alphabet used for encoding.
+ */
 export function encode(num: number, alphabet: string = ALPHABET): string {
-	/**
-	 * Encode a positive number in Base X
-	 *
-	 * @param num - The number to encode
-	 * @param alphabet - The alphabet to use for encoding
-	 */
 	if (num === 0) {
 		return alphabet[0];
 	}
@@ -29,13 +26,13 @@ export function encode(num: number, alphabet: string = ALPHABET): string {
 	return arr.join('');
 }
 
+/**
+ * Decode a Base X encoded string into a number.
+ *
+ * @param str Encoded input.
+ * @param alphabet Alphabet used for decoding.
+ */
 export function decode(str: string, alphabet: string = ALPHABET): number {
-	/**
-	 * Decode a Base X encoded string into a number
-	 *
-	 * @param str - The encoded string
-	 * @param alphabet - The alphabet to use for encoding
-	 */
 	const base = alphabet.length;
 	const strlen = str.length;
 	let num = 0;
@@ -54,13 +51,11 @@ export function decode(str: string, alphabet: string = ALPHABET): number {
 	return num;
 }
 
+/**
+ * Encode a positive bigint in Base X.
+ * Kept for potential future large-ID support.
+ */
 export function encodeBigInt(num: bigint, alphabet: string = ALPHABET): string {
-	/**
-	 * Encode a positive bigint in Base X
-	 *
-	 * @param num - The bigint number to encode
-	 * @param alphabet - The alphabet to use for encoding
-	 */
 	if (num === 0n) {
 		return alphabet[0];
 	}
@@ -79,13 +74,11 @@ export function encodeBigInt(num: bigint, alphabet: string = ALPHABET): string {
 	return arr.join('');
 }
 
+/**
+ * Decode a Base X encoded string into a bigint.
+ * Kept for potential future large-ID support.
+ */
 export function decodeBigInt(str: string, alphabet: string = ALPHABET): bigint {
-	/**
-	 * Decode a Base X encoded string into a bigint
-	 *
-	 * @param str - The encoded string
-	 * @param alphabet - The alphabet to use for encoding
-	 */
 	const base = BigInt(alphabet.length);
 	let num = 0n;
 

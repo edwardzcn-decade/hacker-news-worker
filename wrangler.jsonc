@@ -5,10 +5,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"triggers": {
-		"crons": [
-			"*/5 * * * *",
-			"40 8 * * mon-fri",
-		]
+		"crons": ["*/5 * * * *", "40 8 * * mon-fri"]
 	},
 	"name": "hacker-news-worker",
 	"main": "src/index.ts",
@@ -33,7 +30,7 @@
 	 */
 	"vars": {
 		"KV_TTL_SECS": 14400,
-		"TELEGRAM_CHAT_ID": "@hacker_news_summary",
+		"TG_CHAT_ID": "@hacker_news_summary"
 	},
 	"kv_namespaces": [
 		{

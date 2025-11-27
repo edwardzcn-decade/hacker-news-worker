@@ -1,22 +1,36 @@
+// Shard helpers kept for optional parallel fetches
+// see `fetchTop` and `fetchTopWithShards` in `../apis/hn.ts`.
+
 /**
- * Splits an array of numbers into `n` interleaved shards.
- * Equivalent to Python's [raw_array[i::n] for i in range(n)]
+ * Split numbers into `shards` interleaved buckets.
+ * Same as `[a[i::n] for  i in range(n)]` in Python
+ *
+ * @param rawArray Source ids.
+ * @param shards Number of buckets (must be > 0).
+ * @returns Sharded id lists in round-robin order.
  */
-export function shardsInterleaved(raw_array: number[], shards: number): number[][] {
+export function shardsInterleaved(rawArray: number[], shards: number): number[][] {
 	if (shards <= 0) throw new Error('Number of shards must be positive');
 	const result: number[][] = Array.from({ length: shards }, () => []);
-	for (let i = 0; i < raw_array.length; i++) {
-		result[i % shards].push(raw_array[i]);
+	for (let i = 0; i < rawArray.length; i++) {
+		result[i % shards].push(rawArray[i]);
 	}
 	return result;
 }
 
-export function shardsSequential(raw_array: number[], shards: number): number[][] {
+/**
+ * Split numbers into `shards` sequential chunks.
+ *
+ * @param rawArray Source ids.
+ * @param shards Number of buckets (must be > 0).
+ * @returns Sharded id lists in contiguous slices.
+ */
+export function shardsSequential(rawArray: number[], shards: number): number[][] {
 	if (shards <= 0) throw new Error('Number of shards must be positive');
 	const result: number[][] = [];
-	const shard_size = Math.ceil(raw_array.length / shards);
-	for (let i = 0; i < raw_array.length; i += shard_size) {
-		result.push(raw_array.slice(i, i + shard_size));
+	const shard_size = Math.ceil(rawArray.length / shards);
+	for (let i = 0; i < rawArray.length; i += shard_size) {
+		result.push(rawArray.slice(i, i + shard_size));
 	}
 	return result;
 }
