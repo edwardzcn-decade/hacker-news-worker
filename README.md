@@ -8,7 +8,6 @@ Mainly work on Cloudflare Workers to fetch and process Hacker News data, forward
 + [x] Devide into API redirect and page redirect
 + [x] Notify for Telegram bot
 + [ ] Notify Email
-+ [ ] LLM summary and scoring
 + [ ] Implement Email notification
 
 ## Flowchart
