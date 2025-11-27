@@ -5,11 +5,11 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"triggers": {
-		"crons": ["*/5 * * * *", "40 8 * * mon-fri"]
+		"crons": ["*/10 * * * *", "30 9 * * mon,wed,fri"]
 	},
 	"name": "hacker-news-worker",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-11-24",
+	"compatibility_date": "2025-11-27",
 	"observability": {
 		"enabled": true
 	},
@@ -29,7 +29,7 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 	 */
 	"vars": {
-		"KV_TTL_SECS": 14400,
+		"KV_TTL_SECS": 86400,
 		"TG_CHAT_ID": "@hacker_news_summary"
 	},
 	"kv_namespaces": [
