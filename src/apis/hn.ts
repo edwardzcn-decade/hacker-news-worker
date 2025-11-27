@@ -22,7 +22,16 @@ export interface HackerNewsItem {
 	descendants?: number; // in the case of stories or polls, the total comment count
 }
 
-export const LIVE_DATA_TYPES = ['max_item', 'top_hn', 'new_hn', 'best_hn', 'ask_hn', 'show_hn', 'job_hn', 'updates'];
+export const LIVE_DATA_TYPES = [
+	'max_item',
+	'top_hn',
+	'new_hn',
+	'best_hn',
+	'ask_hn',
+	'show_hn',
+	'job_hn',
+	'updates',
+];
 
 export type LiveDataKey = (typeof LIVE_DATA_TYPES)[number];
 export type LivaDataUpdateDict = { items: number[]; profiles: string[] };
@@ -95,17 +104,18 @@ export async function fetchTop(limit: number = LIMIT_DEFAULT): Promise<HackerNew
 export async function fetchTopWithShards(
 	limit: number = LIMIT_DEFAULT,
 	shards: number = SHARD_DEFAULT,
-	shardType: 'interleaved' | 'sequential' = 'interleaved'
+	shardType: 'interleaved' | 'sequential' = 'interleaved',
 ): Promise<HackerNewsItem[]> {
 	// Async parallel with sharding
 	try {
 		const ids: number[] = await apiFetchTopStoryIds(limit);
-		const shardIds: number[][] = shardType === 'interleaved' ? shardsInterleaved(ids, shards) : shardsSequential(ids, shards);
+		const shardIds: number[][] =
+			shardType === 'interleaved' ? shardsInterleaved(ids, shards) : shardsSequential(ids, shards);
 		const shardPromises = shardIds.map((shard) => fetchItemsByIds(shard));
 		const shardResults: HackerNewsItem[][] = await Promise.all(shardPromises);
 		return shardResults.flat();
 	} catch (err) {
-		console.error('Error in fetchTopWithShards:', err);
+		console.error('[HN API] Error in fetchTopWithShards:', err);
 		return [];
 	}
 }
@@ -116,18 +126,21 @@ export async function fetchItemsByIds(ids: number[]): Promise<HackerNewsItem[]> 
 		const results = await Promise.all(promises);
 		return results.filter((item): item is HackerNewsItem => !!item);
 	} catch (err) {
-		console.error('Error in fetchItemsByIds:', err);
+		console.error('[HN API] Error in fetchItemsByIds:', err);
 		return [];
 	}
 }
 
 async function apiFetchLiveData(key: 'max_item', limit?: number): Promise<number | null>;
 async function apiFetchLiveData(key: 'updates', limit?: number): Promise<LivaDataUpdateDict>;
-async function apiFetchLiveData(key: Exclude<LiveDataKey, 'max_item' | 'updates'>, limit?: number): Promise<number[]>;
+async function apiFetchLiveData(
+	key: Exclude<LiveDataKey, 'max_item' | 'updates'>,
+	limit?: number,
+): Promise<number[]>;
 async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 	const config = LIVE_DATA_CONFIGS[key];
 	if (!config) {
-		console.warn('⚠️ Missing config for live data key:', key);
+		console.warn('[HN API] ⚠️ Missing config for live data key:', key);
 		return null;
 	}
 
@@ -141,7 +154,7 @@ async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 	});
 
 	if (!res.ok) {
-		console.error('Failed to fetch live data. key=', key, '  status=', res.status);
+		console.error('[HN API] Failed to fetch live data. key=', key, '  status=', res.status);
 		return key === 'max_item' ? null : key === 'updates' ? { items: [], profiles: [] } : [];
 	}
 
@@ -192,8 +205,6 @@ export async function apiFetchUpdates(): Promise<LivaDataUpdateDict> {
 export async function apiFetchItem(itemId: number): Promise<HackerNewsItem | null> {
 	const endpoint = new URL(`item/${itemId}.json`, HN_BASE_URL);
 	endpoint.searchParams.append('print', 'pretty');
-
-	console.log('Fetching item from endpoint:', endpoint.toString());
 	const res = await fetch(endpoint, {
 		headers: {
 			'User-Agent': 'Cloudflare Worker - hacker-news-worker/v0.2.0',
@@ -201,10 +212,12 @@ export async function apiFetchItem(itemId: number): Promise<HackerNewsItem | nul
 		},
 	});
 	if (!res.ok) {
-		console.error('Failed to fetch item. id=', itemId, '  status=', res.status);
+		console.error(`[HN API] Failed to fetch item. id:${itemId}, status:${res.status}`);
 		return null;
 	}
-	return (await res.json()) as HackerNewsItem;
+	const hnItem = (await res.json()) as HackerNewsItem;
+	console.log(`[HN API] Fetch item from endpoint:${endpoint.toString()}. score:${hnItem.score}`);
+	return hnItem;
 }
 
 export { apiFetchLiveData };
