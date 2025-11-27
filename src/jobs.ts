@@ -1,7 +1,14 @@
 import { KVManager } from './kv';
 import { HackerNewsItem, fetchTop, fetchTopWithShards } from './apis/hn';
 import { sendMessage } from './apis/tg';
-import { prefixFactory, keyWithPrefix, encode, escapeHtml } from './utils/tools';
+import {
+	FOUR_HOURS,
+	TWO_DAYS,
+	prefixFactory,
+	keyWithPrefix,
+	encode,
+	escapeHtml,
+} from './utils/tools';
 import { MIN_SCORE_DEFAULT, TG_BASE_URL, UNIX_TIME_DEFAULT, KV_PREFIX } from './utils/config';
 
 export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
@@ -73,44 +80,56 @@ async function notifyTg(env: Env, p: any, specified?: string): Promise<void> {
 			`[Notify All] ⚠️ notifyTg with specified bot not implement. Fallback to default bot.`,
 		);
 	}
-	const story_id_int: number = p.id;
-	const story_id: string = story_id_int.toString();
-	const short_id: string = encode(story_id_int);
-	const hn_url: URL = new URL('item', 'https://news.ycombinator.com/');
-	hn_url.searchParams.append('id', story_id);
+	const storyId: string = p.id.toString();
+	const shortId: string = encode(p.id);
+	const commentCounts: number | undefined = p.descendants;
+	// Comment url group
+	const hnUrl: URL = new URL('item', 'https://news.ycombinator.com/');
+	hnUrl.searchParams.append('id', storyId);
+	const shortHnUrl: URL = new URL(`c/${shortId}`, 'https://readhacker.news/');
+	// Story url group
+	const storyUrl: URL = typeof p.url === 'string' ? new URL(p.url) : hnUrl;
+	const shortStoryUrl: URL = p.url
+		? new URL(`s/${shortId}`, 'https://readhacker.news/')
+		: shortHnUrl;
 
-	let story_url = p.url;
-	const short_hn_url: URL = new URL(`c/${short_id}`, 'https://readhacker.news/');
-	let short_url: URL = new URL(`s/${short_id}`, 'https://readhacker.news/');
-
-	if (!!story_url) {
-		short_url = short_hn_url;
-	}
 	const buttons = [
 		{
-			text: 'Read',
-			url: story_url,
+			text: p.url ? 'Read' : 'Read HN',
+			url: storyUrl,
 		},
 		{
-			text: 'Comments',
-			url: hn_url,
+			text: commentCounts ? `Comments (${commentCounts}+)` : `Comments`,
+			url: shortStoryUrl,
 		},
 	];
 
+	// Get the time difference and emoji
+	const nowSecs: number = Date.now() / 1000;
+	const statusEmoji =
+		typeof p.time === 'number'
+			? (() => {
+					const delta = nowSecs - p.time;
+					if (delta <= FOUR_HOURS) return '🔥 ';
+					if (delta >= TWO_DAYS) return '❄️ ';
+					return '';
+			  })()
+			: '';
+
+	// Add title
 	const title = escapeHtml(p.title);
 	const scorePart = typeof p.score === 'number' ? `Score: ${p.score}+` : '';
 	const headerParts = [scorePart, `by ${p.by}`].filter(Boolean).join(' · ');
 
-	// Raw title
-	let message = `<b>${title}</b>`;
+	let message = `<b>${title}</b> ${statusEmoji}`;
 	if (headerParts) {
 		message += `\n(${headerParts})`;
 	}
 
 	// Story URL Link
-	message += `\n\n<b>Link:</b> ${p.url}`;
+	message += `\n\n<b>Link:</b> ${shortStoryUrl}`;
 	// Comments URL Link
-	message += `\n<b>Comments:</b> ${hn_url}`;
+	message += `\n<b>Comments:</b> ${shortHnUrl}`;
 
 	const replyMarkup = {
 		inline_keyboard: [buttons],
