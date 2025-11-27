@@ -4,6 +4,38 @@ Hacker News Worker is a [Cloudflare Workers](https://developers.cloudflare.com/w
 
 This project is based on the Python project [phil-r/hackernewsbot](https://github.com/phil-r/hackernewsbot). The original project runs on Google App Engine (GAE) platform and is written in Python 2. Thank you phil-r for creating such a tool!
 
+## Scheduled Jobs
+
+The cron expression appearing in switch-case branches in `scheduled` handler should be consistent with your `triggers.crons` configuration.
+
+As shown in the template, in `wrangler.jsonc` we set:
+
+```json
+{
+	"triggers": {
+		"crons": ["*/10 * * * *", "30 9 * * mon,wed,fri"]
+	}
+}
+```
+
+If you change them, make sure the expressions after `case` are updated as well.
+
+```ts
+switch (controller.cron) {
+	case "*/10 * * * *": // match the first cron job
+		await runJob(env);
+		break;
+	case "30 9 * * mon,wed,fri":
+		// 09:30 UTC every Monday, Wednesday and Friday
+		await runAnother(env): // match the second cron job
+		break
+	default:
+    break
+}
+```
+
+
+
 ## Features
 
 - Scheduled fetching via Cloudflare Workers Cron Triggers.
