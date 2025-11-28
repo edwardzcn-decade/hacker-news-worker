@@ -68,10 +68,7 @@ export default {
 					}),
 			);
 		} else if (LIVE_DATA_TYPES.includes(endpoint as LiveDataKey)) {
-			// match `forward/topstories` and others
-			// Bug free but with complicated type notations, TODO?
 			if (!num) {
-				// TODO relax limit for hacker news livedata.
 				return new Response(
 					`Forward route /forward/${endpoint} missing specific limit number. Bad Request`,
 					{ status: 400 },

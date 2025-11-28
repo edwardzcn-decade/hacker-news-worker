@@ -1,11 +1,11 @@
 const METADATA_LIMIT_BYTE_LENGTH = 1024;
 const PREFIX_DEFAULT = 'DEFAULT';
 const ALPHABET = '23456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
-const HOUR_MS = 60 * 60 * 1000;
-const DAY_MS = 24 * HOUR_MS;
+const HOUR_SECS = 60 * 60;
+const DAY_SECS = 24 * HOUR_SECS;
 
-export const FOUR_HOURS = 4 * HOUR_MS;
-export const TWO_DAYS = 2 * DAY_MS;
+export const FOUR_HOURS = 4 * HOUR_SECS;
+export const TWO_DAYS = 2 * DAY_SECS;
 /**
  * Encode a positive number in Base X.
  *
