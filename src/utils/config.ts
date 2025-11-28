@@ -1,6 +1,9 @@
+export const APP_NAME = 'hacker-news-worker';
+export const APP_VERSION = '0.4.0';
+export const APP_USER_AGENT = `Cloudflare Worker - ${APP_NAME}/${APP_VERSION}`;
 export const HN_BASE_URL = 'https://hacker-news.firebaseio.com/v0/';
 export const TG_BASE_URL = 'https://api.telegram.org/';
-export const KV_PREFIX = 'HN'
+export const KV_PREFIX = 'HN';
 export const LIMIT_DEFAULT = 20;
 export const SHARD_DEFAULT = 3;
 export const MIN_SCORE_DEFAULT = 150;

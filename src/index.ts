@@ -38,7 +38,6 @@ export default {
 			}
 			console.log(`Forward route /forward/${endpoint}, fetching item with id:${num}.`);
 			const id: number = parseInt(num, 10);
-			// v0.2.0: refactor to a promise-based functional style
 			return apiFetchItem(id).then((item) =>
 				item
 					? new Response(JSON.stringify(item, null, 2), {
@@ -51,7 +50,6 @@ export default {
 			);
 		} else if ((endpoint as LiveDataKey) === 'max_item') {
 			console.log(`Forward route /forward/${endpoint}, fetching max_item.`);
-			// v0.2.0: refactor to a promise-based functional style
 			return apiFetchMaxItemId().then(
 				(data) =>
 					new Response(JSON.stringify(data, null, 2), {
@@ -60,7 +58,6 @@ export default {
 			);
 		} else if ((endpoint as LiveDataKey) === 'updates') {
 			console.log(`Forward route /forward/${endpoint}, fetching updates.`);
-			// v0.2.0: refactor to a promise-based functional style
 			return apiFetchUpdates().then(
 				(data) =>
 					new Response(JSON.stringify(data, null, 2), {
@@ -97,7 +94,7 @@ export default {
 				// Every 10 minutes, trigger telegram bot
 				ctx.waitUntil(runTelegramJob(env));
 				break;
-			case '10 9 * * mon,wed,fri':
+			case '30 9 * * mon,wed,fri':
 				// 09:30 UTC every Monday, Wednesday and Friday
 				ctx.waitUntil(runEmailJob(env));
 				break;

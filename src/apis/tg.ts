@@ -1,4 +1,4 @@
-import { TG_BASE_URL } from '../utils/config';
+import { APP_USER_AGENT, TG_BASE_URL } from '../utils/config';
 
 export async function sendMessage(
 	tgBotToken: string,
@@ -11,7 +11,7 @@ export async function sendMessage(
 	tgEndpoint.pathname = `bot${tgBotToken}/sendMessage`;
 
 	const header = {
-		'User-Agent': 'hacker-news-worker/v0.3.1',
+		'User-Agent': APP_USER_AGENT,
 		'Content-Type': 'application/json',
 	};
 	const payload = JSON.stringify({

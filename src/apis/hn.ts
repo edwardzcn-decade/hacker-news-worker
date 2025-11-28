@@ -1,8 +1,7 @@
-import { HN_BASE_URL, LIMIT_DEFAULT, SHARD_DEFAULT } from '../utils/config';
+import { APP_USER_AGENT, HN_BASE_URL, LIMIT_DEFAULT, SHARD_DEFAULT } from '../utils/config';
 import { shardsInterleaved, shardsSequential } from '../utils/shards';
 
 // Represent a Hacker News item from [FireBase](https://firebase.google.com/)
-// v0.3.1 change into interface to describe structure
 // export type [HackerNewsItem](https://github.com/HackerNews/API?tab=readme-ov-file#items)
 export interface HackerNewsItem {
 	id: number; // unique identifier
@@ -148,7 +147,7 @@ async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 	endpoint.searchParams.append('print', 'pretty');
 	const res = await fetch(endpoint, {
 		headers: {
-			'User-Agent': 'Cloudflare Worker - hacker-news-worker/v0.2.0',
+			'User-Agent': APP_USER_AGENT,
 			Accept: 'application/json',
 		},
 	});
@@ -207,7 +206,7 @@ export async function apiFetchItem(itemId: number): Promise<HackerNewsItem | nul
 	endpoint.searchParams.append('print', 'pretty');
 	const res = await fetch(endpoint, {
 		headers: {
-			'User-Agent': 'Cloudflare Worker - hacker-news-worker/v0.2.0',
+			'User-Agent': APP_USER_AGENT,
 			Accept: 'application/json',
 		},
 	});
