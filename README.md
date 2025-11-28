@@ -4,7 +4,45 @@ Hacker News Worker is a [Cloudflare Workers](https://developers.cloudflare.com/w
 
 This project is based on the Python project [phil-r/hackernewsbot](https://github.com/phil-r/hackernewsbot). The original project runs on Google App Engine (GAE) platform and is written in Python 2. Thank you phil-r for creating such a tool!
 
-## Scheduled Jobs
+## Features
+
+- Scheduled jobs via [Cloudflare Workers Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
+- Fetches Hacker News items from the official Firebase API ([HN API](https://github.com/HackerNews/API) wrapper).
+- Filtering top stories and de-duplication via [Cloudflare Workers KV](https://developers.cloudflare.com/kv/).
+- Telegram bot notifications via Telegram Bot API wrapper.
+- Email notification via [Cloudflare Email Routing](https://developers.cloudflare.com/email-routing/)
+- Pluggable layer with placeholders for LLM intergration and other notification.
+
+## How to run your own hacker-news-worker
+
+<p align="center">
+  <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/edwardzcn-decade/hacker-news-worker"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare Workers"></a>
+</p>
+
+- Clone this project or just click deploy button
+- Build and deploy this worker from [Cloudflare Dashboard](https://deploy.workers.cloudflare.com/)
+- Register your Telegram bot via [BotFather](https://telegram.me/BotFather) and remember your **bot token**
+- Run `npx wrangler secret put TG_BOT_TOKEN` to put your bot token
+- Search `xxx@example.me` and `xxx@example.com` in `wrangler.json` and `email.ts` and replace them with your own registered/verified email address
+- Update your own repository, rebuild and deploy the worker through dashboard or use `npx wrangler types && npx wrangler deploy`
+
+### Local development
+
+Run `npx wrangler dev` and read the [Cloudflare Docs](https://developers.cloudflare.com/workers/get-started/guide/) for more information.
+
+### Scheduled Jobs
+
+> [!NOTE]For local deveplopment
+>
+> When use `npx wrangler dev` to run the worker locally. The scheduled jobs (e.g.  every ten minutes) wont be triggered unless you call the special endpoint. You need to manually trigger them yourself.
+>
+> If you see this log:
+> ```text
+> ⎔ Starting local server...
+> [wrangler:info] Ready on http://localhost:8787
+> ```
+>
+> That means the local worker is successfully running on port 8787. Use `curl "http://localhost:8787/cdn-cgi/handler/scheduled"` to trigger the scheduled job (with empty cron name).
 
 The cron expression appearing in switch-case branches in `scheduled` handler should be consistent with your `triggers.crons` configuration.
 
@@ -34,16 +72,6 @@ switch (controller.cron) {
 }
 ```
 
-## Features
-
-- Scheduled fetching via Cloudflare Workers Cron Triggers.
-- Fetches Hacker News items and live data from the official Firebase API.
-- Filtering and de-duplication using KV storage (score, time, and processed item IDs).
-- Telegram bot notifications using the Telegram Bot API.
-- Pluggable notification layer with placeholders for email, webhooks, and database sinks.
-- LLM integration hooks for:
-  - Generating summaries for each Hacker News item.
-  - Assigning an additional LLM-based relevance score.
 
 ## Roadmap
 
@@ -51,22 +79,12 @@ switch (controller.cron) {
 - [x] Data filter
 - [x] Telegram notifications
 - [x] Basic KV caching and de-duplication
-- [ ] Email notifications
-- [ ] Webhook / database sink integration
-- [ ] (Optional) Implement LLM-based summaries
-- [ ] (Optional) Implement LLM-based scoring and ranking
+- [x] Email notifications
+- [ ] ~~Webhook / database sink integration~~
+- [ ] ~~(Optional) Implement LLM-based summaries~~
+- [ ] ~~(Optional) Implement LLM-based scoring and ranking~~
 
-## High-level Flow
-
-- A scheduled Cron trigger or an HTTP route invokes the Worker.
-- The Worker queries the Hacker News Firebase API for items and live data.
-- Items pass through a processing pipeline:
-  - Basic filtering (score, recency).
-  - De-duplication using KV.
-  - Optional LLM summary and scoring.
-- The processed items are sent to configured notification channels (Telegram, email, webhooks, etc.) or stored for later consumption (for example, a personal reading queue).
-
-### Flowchart
+## Flowchart
 
 ```mermaid
 flowchart LR
@@ -90,7 +108,7 @@ flowchart LR
       Process2 --> |Optional| Output2
     end
 
-    E["Notification Channels<br/>Telegram / Email / Webhook"]:::output
+    E["Notification Channels<br/>Telegram / Email"]:::output
     F["Daily Projects / Reading Queue"]:::output
     E --> F
 
