@@ -9,7 +9,7 @@
 	},
 	"name": "hacker-news-worker",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-11-27",
+	"compatibility_date": "2025-11-28",
 	"observability": {
 		"enabled": true
 	},
@@ -24,11 +24,9 @@
 	 * databases, object storage, AI inference, real-time communication and more.
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 */
 	"vars": {
+		"EMAIL_FROM": "sender_address@example.me",
+		"EMAIL_TO": "verified_email_address@example.com",
 		"KV_TTL_SECS": 86400,
 		"TG_CHAT_ID": "@hacker_news_summary"
 	},
@@ -37,6 +35,12 @@
 			"binding": "HACKER_NEWS_WORKER",
 			"id": "b02cf94318b84768b7b2f60029feb958",
 			"remote": false // Set true to connect to the remote resource instead of a local resource
+		}
+	],
+	"send_email": [
+		{
+			"name": "HACKER_NEWS_EMAIL",
+			"destination_address": "verified_email_address@example.com"
 		}
 	]
 	/**

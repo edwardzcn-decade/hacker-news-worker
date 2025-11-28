@@ -1,6 +1,7 @@
 import { KVManager } from './kv';
 import { HackerNewsItem, fetchTop, fetchTopWithShards } from './apis/hn';
 import { sendMessage } from './apis/tg';
+import { sendEmail } from './email';
 import {
 	FOUR_HOURS,
 	TWO_DAYS,
@@ -59,7 +60,10 @@ export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 }
 
 export async function runEmailJob(env: Env): Promise<void> {
-	console.warn(`[Email Job] ⚠️ runEmailJob implement. Only log.`);
+	// Manage your own subject and text
+	const subject = 'Hacker News Weekly Summary';
+	const text = 'Congratulations, you just sent an email from a worker.';
+	await sendEmail(env, subject, text);
 }
 // ========= Notification Channels =========
 
