@@ -1,5 +1,5 @@
 import { KVManager } from './kv';
-import { HackerNewsItem, fetchTop, fetchTopWithShards } from './apis/hn';
+import { type HackerNewsItem, fetchTop, fetchTopWithShards } from './apis/hn';
 import { sendMessage } from './apis/tg';
 import { sendEmail } from './email';
 import {
@@ -105,7 +105,7 @@ async function notifyTg(env: Env, p: any, specified?: string): Promise<void> {
 		},
 		{
 			text: commentCounts ? `Comments ${commentCounts}+` : `Comments`,
-			url: shortStoryUrl,
+			url: shortHnUrl,
 		},
 	];
 
