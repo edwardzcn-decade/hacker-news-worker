@@ -1,11 +1,10 @@
 import {
 	LIVE_DATA_TYPES,
-	LiveDataKey,
+	type LiveDataKey,
 	apiFetchItem,
 	apiFetchLiveData,
 	apiFetchMaxItemId,
 	apiFetchUpdates,
-	fetchTop,
 } from './apis/hn';
 
 import { runTelegramJob, runEmailJob } from './jobs';

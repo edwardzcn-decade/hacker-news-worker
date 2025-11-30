@@ -30,7 +30,8 @@
 		"allowSyntheticDefaultImports": true,
 		/* Ensure that casing is correct in imports. */
 		"forceConsistentCasingInFileNames": true,
-
+		/* Control type import elision using TypeScript 5.0 style */
+		"verbatimModuleSyntax": true,
 		/* Enable all strict type-checking options. */
 		"strict": true,
 

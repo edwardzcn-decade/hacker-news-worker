@@ -2,7 +2,7 @@
  * KVManager wraps KV CRUD operations used for Hacker News caching.
  */
 
-import { HackerNewsItem } from './apis/hn';
+import { type HackerNewsItem } from './apis/hn';
 import { checkMetaLimit } from './utils/tools';
 interface HackerNewsItemCache {
 	uuid: string;
