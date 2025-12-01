@@ -1,4 +1,4 @@
-import { KVManager } from './kv';
+import { KVManager } from './kvm';
 import { type HackerNewsItem, fetchTop, fetchTopWithShards } from './apis/hn';
 import { sendMessage } from './apis/tg';
 import { sendEmail } from './email';
@@ -10,11 +10,18 @@ import {
 	encode,
 	escapeHtml,
 } from './utils/tools';
-import { MIN_SCORE_DEFAULT, TG_BASE_URL, UNIX_TIME_DEFAULT, KV_PREFIX } from './utils/config';
+import {
+	MIN_SCORE_DEFAULT,
+	TG_BASE_URL,
+	UNIX_TIME_DEFAULT,
+	KV_PREFIX,
+	KV_TTL_KEY,
+	KV_TTL_VAL,
+} from './utils/config';
 
 export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 	const hnPrefix: string = prefixFactory(KV_PREFIX);
-	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, hnPrefix, 'TTL', env.KV_TTL_SECS);
+	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, hnPrefix, KV_TTL_KEY, KV_TTL_VAL);
 
 	console.log('[Job TG] Fetch top stories without shards with Hacker News API');
 	const topItems: HackerNewsItem[] =

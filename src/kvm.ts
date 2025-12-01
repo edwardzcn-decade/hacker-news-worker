@@ -19,7 +19,7 @@ export class KVManager {
 	 * Create a new KVManager instance.
 	 *
 	 * @param kv Cloudflare KV namespace instance.
-	 * @param prefix Key prefix for Hacker News (e.g. HN for HN-13311).
+	 * @param prefix Default Manager key prefix (e.g. "HN" for Hacker News like "HN-13311").
 	 * @param ttlKey Key storing the default TTL value.
 	 * @param ttlDefault Fallback/Default TTL value in seconds.
 	 */
@@ -36,9 +36,10 @@ export class KVManager {
 			// One-time read–write for visibility in KV dashboard
 			const current = await kv.get(ttlKey, 'text');
 			if (!current) {
+				console.log(`[KVManager] Init key:${ttlKey} value:${ttlDefault} in KVManager init`);
 				await kv.put(ttlKey, ttlDefault.toString());
 			} else {
-				console.error(`[KVManager] ⚠️ Rewrite key:${ttlKey} value:${ttlDefault} in KVManager init`);
+				console.log(`[KVManager] ⚠️ Rewrite key:${ttlKey} value:${ttlDefault} in KVManager init`);
 				await kv.put(ttlKey, ttlDefault.toString());
 			}
 		} catch (err) {
@@ -163,7 +164,7 @@ export class KVManager {
 			);
 		}
 		if (!checkMetaLimit(meta ?? {})) {
-			console.warn(`[KVManager] ⚠️ Metadata ${meta} too large for key:${key}}. Please check.`);
+			console.warn(`[KVManager] ⚠️ Metadata ${meta} too large for key:${key}. Please check.`);
 		}
 		const options: KVNamespacePutOptions = {
 			// expiration not used

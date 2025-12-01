@@ -43,7 +43,7 @@ export type LiveDataConfig = {
 	defaultMinScore?: number;
 };
 
-export const LIVE_DATA_CONFIGS: Record<LiveDataKey, LiveDataConfig> = {
+const LIVE_DATA_CONFIGS: Record<LiveDataKey, LiveDataConfig> = {
 	max_item: {
 		apiEndpoint: 'maxitem.json',
 		label: 'Max Item Id',
