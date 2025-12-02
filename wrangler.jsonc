@@ -9,7 +9,7 @@
 	},
 	"name": "hacker-news-worker",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-11-28",
+	"compatibility_date": "2025-12-01",
 	"observability": {
 		"enabled": true
 	},

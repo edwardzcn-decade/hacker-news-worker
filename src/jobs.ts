@@ -20,10 +20,9 @@ import {
 } from './utils/config';
 
 export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
+	console.log('[Job TG] Fetch top stories without shards with Hacker News API');
 	const hnPrefix: string = prefixFactory(KV_PREFIX);
 	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, hnPrefix, KV_TTL_KEY, KV_TTL_VAL);
-
-	console.log('[Job TG] Fetch top stories without shards with Hacker News API');
 	const topItems: HackerNewsItem[] =
 		shards !== undefined ? await fetchTopWithShards(undefined, shards) : await fetchTop();
 
