@@ -114,7 +114,7 @@ export async function fetchTopWithShards(
 		const shardResults: HackerNewsItem[][] = await Promise.all(shardPromises);
 		return shardResults.flat();
 	} catch (err) {
-		console.error('[HN API] Error in fetchTopWithShards:', err);
+		console.error('[HN API] ❌ Error in fetchTopWithShards:', err);
 		return [];
 	}
 }
@@ -125,9 +125,30 @@ export async function fetchItemsByIds(ids: number[]): Promise<HackerNewsItem[]> 
 		const results = await Promise.all(promises);
 		return results.filter((item): item is HackerNewsItem => !!item);
 	} catch (err) {
-		console.error('[HN API] Error in fetchItemsByIds:', err);
+		console.error('[HN API] ❌ Error (one of apiFetchItem) in fetchItemsByIds:', err);
 		return [];
 	}
+}
+
+// Common functions to fetch specific live data types
+export async function apiFetchTopStoryIds(limit?: number): Promise<number[]> {
+	return apiFetchLiveData('top_hn', limit);
+}
+
+export async function apiFetchNewStoryIds(limit?: number): Promise<number[]> {
+	return apiFetchLiveData('new_hn', limit);
+}
+
+export async function apiFetchBestStoryIds(limit?: number): Promise<number[]> {
+	return apiFetchLiveData('best_hn', limit);
+}
+
+export async function apiFetchMaxItemId(): Promise<number | null> {
+	return apiFetchLiveData('max_item');
+}
+
+export async function apiFetchUpdates(): Promise<LivaDataUpdateDict> {
+	return apiFetchLiveData('updates');
 }
 
 async function apiFetchLiveData(key: 'max_item', limit?: number): Promise<number | null>;
@@ -139,7 +160,7 @@ async function apiFetchLiveData(
 async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 	const config = LIVE_DATA_CONFIGS[key];
 	if (!config) {
-		console.warn('[HN API] ⚠️ Missing config for live data key:', key);
+		console.warn(`[HN API] ⚠️ Missing config for live data key:${key}`);
 		return null;
 	}
 
@@ -153,7 +174,7 @@ async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 	});
 
 	if (!res.ok) {
-		console.error('[HN API] Failed to fetch live data. key=', key, '  status=', res.status);
+		console.error(`[HN API] ❌ Failed to fetch ${key} status=${res.status}`);
 		return key === 'max_item' ? null : key === 'updates' ? { items: [], profiles: [] } : [];
 	}
 
@@ -179,27 +200,6 @@ async function apiFetchLiveData(key: LiveDataKey, limit?: number) {
 	return ids;
 }
 
-// Common functions to fetch specific live data types
-export async function apiFetchTopStoryIds(limit?: number): Promise<number[]> {
-	return apiFetchLiveData('top_hn', limit);
-}
-
-export async function apiFetchNewStoryIds(limit?: number): Promise<number[]> {
-	return apiFetchLiveData('new_hn', limit);
-}
-
-export async function apiFetchBestStoryIds(limit?: number): Promise<number[]> {
-	return apiFetchLiveData('best_hn', limit);
-}
-
-export async function apiFetchMaxItemId(): Promise<number | null> {
-	return apiFetchLiveData('max_item');
-}
-
-export async function apiFetchUpdates(): Promise<LivaDataUpdateDict> {
-	return apiFetchLiveData('updates');
-}
-
 // Fetch a single Hacker News item by id
 export async function apiFetchItem(itemId: number): Promise<HackerNewsItem | null> {
 	const endpoint = new URL(`item/${itemId}.json`, HN_BASE_URL);
@@ -211,7 +211,7 @@ export async function apiFetchItem(itemId: number): Promise<HackerNewsItem | nul
 		},
 	});
 	if (!res.ok) {
-		console.error(`[HN API] Failed to fetch item. id:${itemId}, status:${res.status}`);
+		console.error(`[HN API] ❌ Failed to fetch item. id:${itemId}, status:${res.status}`);
 		return null;
 	}
 	const hnItem = (await res.json()) as HackerNewsItem;

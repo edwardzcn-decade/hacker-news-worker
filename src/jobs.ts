@@ -30,7 +30,7 @@ export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 	const cachedIds = (await kvm.listKeys(hnPrefix, true))
 		.map((prefixed_id) => {
 			if (!prefixed_id.startsWith(hnPrefix)) {
-				console.warn(`[Job TG] Skip unexpected KV key:${prefixed_id}`);
+				console.warn(`[Job TG] ⚠️ Skip unexpected KV key:${prefixed_id}`);
 				return NaN;
 			}
 			return Number(prefixed_id.slice(hnPrefix.length));
@@ -62,7 +62,7 @@ export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 		});
 		await Promise.all(promises);
 	} catch (err) {
-		console.error('[Job TG] Error in data processing:', err);
+		console.error('[Job TG] ❌ Error in data processing:', err);
 	}
 
 	await notifyAll(env, filteredItems);

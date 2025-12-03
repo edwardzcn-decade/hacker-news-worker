@@ -142,7 +142,7 @@ export class KVManager {
 			return current;
 		}
 		// Need pagination, over 1000 limit
-		console.warn(`[KVManager] ⬇️ List all keys with prefix:${prefix} next cursor:${res.cursor}.`);
+		console.warn(`[KVManager] ⚠️ List all keys with prefix:${prefix} next cursor:${res.cursor}.`);
 		const nxt = await this.listAll(prefix, res.cursor);
 		return current.concat(nxt);
 	}
