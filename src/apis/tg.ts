@@ -30,9 +30,9 @@ export async function sendMessage(
 		});
 		if (!res.ok) {
 			const bodyText = await res.text();
-			console.error('[TG SendMessage] SendMessage failed', res.status, res.statusText, bodyText);
+			console.error('[TG SendMessage] ❌ SendMessage failed', res.status, res.statusText, bodyText);
 		}
 	} catch (err) {
-		console.error(`[TG SendMessage] Network or other error ${err}`);
+		console.error(`[TG SendMessage] ❌ Network or other error ${err}`);
 	}
 }

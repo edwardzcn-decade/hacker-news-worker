@@ -35,7 +35,7 @@ export default {
 					status: 400,
 				});
 			}
-			console.log(`Forward route /forward/${endpoint}, fetching item with id:${num}.`);
+			console.log(`[Forward] Forward route /forward/${endpoint}, fetching item with id:${num}.`);
 			const id: number = parseInt(num, 10);
 			return apiFetchItem(id).then((item) =>
 				item
@@ -48,7 +48,7 @@ export default {
 					  ),
 			);
 		} else if ((endpoint as LiveDataKey) === 'max_item') {
-			console.log(`Forward route /forward/${endpoint}, fetching max_item.`);
+			console.log(`[Forward] Forward route /forward/${endpoint}, fetching max_item.`);
 			return apiFetchMaxItemId().then(
 				(data) =>
 					new Response(JSON.stringify(data, null, 2), {
@@ -56,7 +56,7 @@ export default {
 					}),
 			);
 		} else if ((endpoint as LiveDataKey) === 'updates') {
-			console.log(`Forward route /forward/${endpoint}, fetching updates.`);
+			console.log(`[Forward] Forward route /forward/${endpoint}, fetching updates.`);
 			return apiFetchUpdates().then(
 				(data) =>
 					new Response(JSON.stringify(data, null, 2), {
@@ -78,7 +78,7 @@ export default {
 					}),
 			);
 		}
-		console.warn('⚠️ Forward route pass regex match but fail to resolve.');
+		console.warn('[Forward] ⚠️ Forward route pass regex match but fail to resolve.');
 		return new Response(
 			`Forward route /forward/${endpoint} matched but unknown/unresolved endpoint.`,
 			{ status: 404 },

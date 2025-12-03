@@ -1,4 +1,4 @@
-import { KVManager } from './kv';
+import { KVManager } from './kvm';
 import { type HackerNewsItem, fetchTop, fetchTopWithShards } from './apis/hn';
 import { sendMessage } from './apis/tg';
 import { sendEmail } from './email';
@@ -10,20 +10,31 @@ import {
 	encode,
 	escapeHtml,
 } from './utils/tools';
-import { MIN_SCORE_DEFAULT, TG_BASE_URL, UNIX_TIME_DEFAULT, KV_PREFIX } from './utils/config';
+import {
+	MIN_SCORE_DEFAULT,
+	TG_BASE_URL,
+	UNIX_TIME_DEFAULT,
+	KV_PREFIX,
+	KV_TTL_KEY,
+	KV_TTL_VAL,
+} from './utils/config';
 
 export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
-	const hnPrefix: string = prefixFactory(KV_PREFIX);
-	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, hnPrefix, 'TTL', env.KV_TTL_SECS);
-
 	console.log('[Job TG] Fetch top stories without shards with Hacker News API');
+	const hnPrefix: string = prefixFactory(KV_PREFIX);
+	const kvm = await KVManager.init(env.HACKER_NEWS_WORKER, hnPrefix, KV_TTL_KEY, KV_TTL_VAL);
 	const topItems: HackerNewsItem[] =
 		shards !== undefined ? await fetchTopWithShards(undefined, shards) : await fetchTop();
 
-	// TODO Test listKeys with onlyOnce setting false
+	// Note: No test for listKeys with setting `onlyOnce` false
 	const cachedIds = (await kvm.listKeys(hnPrefix, true))
-		.map((id) => (id.startsWith(hnPrefix) ? id.slice(hnPrefix.length) : id))
-		.map((s) => Number(s))
+		.map((prefixed_id) => {
+			if (!prefixed_id.startsWith(hnPrefix)) {
+				console.warn(`[Job TG] ⚠️ Skip unexpected KV key:${prefixed_id}`);
+				return NaN;
+			}
+			return Number(prefixed_id.slice(hnPrefix.length));
+		})
 		.filter((n) => Number.isFinite(n));
 	console.log(`[Job TG] Cached Hacker News itme ids (parse to to number):${cachedIds}`);
 
@@ -37,9 +48,7 @@ export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 		const promises = filteredItems.map((item) => {
 			const kk = keyWithPrefix(item.id, hnPrefix);
 			const vv = JSON.stringify(item);
-			console.log(
-				`[Job TG] Try cache id:${item.id} (with metadata {uuid: ... llm_summary: ... llm_score: ...})`,
-			);
+			console.log(`[Job TG] Try cache id:${item.id} with metadata... and ttl(default).`);
 			return kvm.create(
 				kk,
 				vv,
@@ -53,7 +62,7 @@ export async function runTelegramJob(env: Env, shards?: number): Promise<void> {
 		});
 		await Promise.all(promises);
 	} catch (err) {
-		console.error('[Job TG] Error in data processing:', err);
+		console.error('[Job TG] ❌ Error in data processing:', err);
 	}
 
 	await notifyAll(env, filteredItems);
@@ -70,20 +79,37 @@ export async function runEmailJob(env: Env): Promise<void> {
 async function notifyAll(env: Env, payloads: any[], specifiedBots?: string[]): Promise<void> {
 	if (specifiedBots !== undefined) {
 		console.warn(
-			`[Notify All] ⚠️ notifyAll with specifiedBots (bot list) not implement. Fallback to default bot.`,
+			`[Notify] ⚠️ notifyAll with specifiedBots (bot list) not implement. Fallback to default bot.`,
 		);
 	}
+	const tgBotToken = env.TG_BOT_TOKEN;
+	if (!tgBotToken) {
+		console.error(
+			'[Notify] ❌ Error in notifyTg, Telegram bot token missing in Env. Please Check.',
+		);
+		return;
+	}
+	const tgChatId = env.TG_CHAT_ID;
+	if (!tgChatId) {
+		console.error(
+			"[Notify] ❌ Error in notifyTg, Telegram Chat ID (may use '@xxx') missing in Env. Please Check.",
+		);
+		return;
+	}
 	for (const p of payloads) {
-		console.log(`[Notify All] Title: \"${p.title}\" --- By: ${p.by}\n[Notify All] Link: ${p.url}`);
-		await notifyTg(env, p);
+		console.log(`[Notify] Title: \"${p.title}\" --- By: ${p.by}\n[Notify] Link: ${p.url}`);
+		await notifyTg(tgBotToken, tgChatId, p, undefined);
 	}
 }
 
-async function notifyTg(env: Env, p: any, specified?: string): Promise<void> {
+async function notifyTg(
+	tgBotToken: string,
+	tgChatId: string,
+	p: any,
+	specified?: string,
+): Promise<void> {
 	if (specified !== undefined) {
-		console.warn(
-			`[Notify All] ⚠️ notifyTg with specified bot not implement. Fallback to default bot.`,
-		);
+		console.warn(`[Notify] ⚠️ notifyTg with specified bot not implement. Fallback to default bot.`);
 	}
 	const storyId: string = p.id.toString();
 	const shortId: string = encode(p.id);
@@ -139,15 +165,7 @@ async function notifyTg(env: Env, p: any, specified?: string): Promise<void> {
 	const replyMarkup = {
 		inline_keyboard: [buttons],
 	};
-
-	const tgBotToken = env.TG_BOT_TOKEN;
-	if (!tgBotToken) {
-		console.error(
-			'[Notify TG] ❌ Error in notifyTg, Telegram bot token missing in Env. Please Check.',
-		);
-		return;
-	}
-	return sendMessage(tgBotToken, env.TG_CHAT_ID, message, replyMarkup);
+	return sendMessage(tgBotToken, tgChatId, message, replyMarkup);
 }
 
 // LLM integration placeholder, replace with your true implementation

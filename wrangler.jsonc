@@ -9,7 +9,7 @@
 	},
 	"name": "hacker-news-worker",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-11-28",
+	"compatibility_date": "2025-12-01",
 	"observability": {
 		"enabled": true
 	},
@@ -27,7 +27,6 @@
 	"vars": {
 		"EMAIL_FROM": "sender_address@example.me",
 		"EMAIL_TO": "verified_email_address@example.com",
-		"KV_TTL_SECS": 86400,
 		"TG_CHAT_ID": "@hacker_news_summary"
 	},
 	"kv_namespaces": [
